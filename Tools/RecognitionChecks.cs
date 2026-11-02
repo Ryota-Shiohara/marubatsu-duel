@@ -35,6 +35,59 @@ public static class RecognitionChecks
         paint((x,y) => Math.Abs(x)<26 && Math.Abs(y)<26 && (Math.Abs(x)<4 || Math.Abs(y)<4));
         Check(processor.Classify(image).Mark == CellMark.Unknown, "plus sign is not cross");
 
+        // Exposure gradients, resampling breaks, and asymmetric strokes seen after rectification.
+        paint((x,y) => Math.Abs(Math.Sqrt(x*x+y*y)-25)<3);
+        AddLightingGradient(image,n);
+        Check(processor.Classify(image).Mark == CellMark.Circle, "circle under smooth lighting gradient");
+        paint((x,y) => Math.Abs(x)<27 && Math.Abs(y)<27 && (Math.Abs(x-y)<4 || Math.Abs(x+y)<4));
+        AddLightingGradient(image,n);
+        Check(processor.Classify(image).Mark == CellMark.Cross, "cross under smooth lighting gradient");
+        paint((x,y) => false);
+        AddLightingGradient(image,n);
+        Check(processor.Classify(image).Mark == CellMark.Empty, "blank sheet under lighting gradient");
+        paint((x,y) => Math.Abs(Math.Sqrt(x*x+y*y)-25)<3 && !(x>0 && y==0));
+        Check(processor.Classify(image).Mark == CellMark.Circle, "one pixel break in circle");
+        paint((x,y) => Math.Abs(x)<27 && Math.Abs(y)<27 && (Math.Abs(x-y)<4 || Math.Abs(x+y)<4) && y!=0);
+        Check(processor.Classify(image).Mark == CellMark.Cross, "one pixel break at cross intersection");
+        paint((x,y) => Math.Abs(x)<27 && Math.Abs(y)<29 &&
+            (Math.Abs(y-0.65*x-3)<3 || Math.Abs(y+1.45*x-3)<3));
+        Check(processor.Classify(image).Mark == CellMark.Cross, "asymmetric diagonal cross");
+        paint((x,y) => Math.Abs(y-0.65*x-3)<3 && Math.Abs(x)<26);
+        Check(processor.Classify(image).Mark == CellMark.Unknown, "slanted single line remains uncertain");
+        paint((x,y) => Math.Abs(x)<3 && y>-28 && y<26 || Math.Abs(y+28)<3 && Math.Abs(x)<26);
+        Check(processor.Classify(image).Mark == CellMark.Unknown, "T shape remains uncertain");
+        paint((x,y) => Math.Abs(Math.Sqrt(x*x+y*y)-25)<3);
+        BlurByDownsampling(image,n,24,16);
+        Check(processor.Classify(image).Mark == CellMark.Circle, "circle after anisotropic low resolution blur");
+        paint((x,y) => Math.Abs(x)<27 && Math.Abs(y)<27 && (Math.Abs(x-y)<4 || Math.Abs(x+y)<4));
+        BlurByDownsampling(image,n,24,16);
+        Check(processor.Classify(image).Mark == CellMark.Cross, "cross after anisotropic low resolution blur");
+        paint((x,y) => Math.Abs(Math.Sqrt(x*x+y*y)-25)<3);
+        BlurByDownsampling(image,n,24,16);
+        AddLightingGradient(image,n);
+        Check(processor.Classify(image).Mark == CellMark.Circle, "blurred circle with exposure gradient");
+        paint((x,y) => Math.Abs(x)<27 && Math.Abs(y)<27 && (Math.Abs(x-y)<4 || Math.Abs(x+y)<4));
+        for (int i=0; i<12; i++) image[(5+i*7)*n+7+(i*17)%80]=15;
+        Check(processor.Classify(image).Mark == CellMark.Cross, "cross with scattered sensor noise");
+        paint((x,y) => Math.Abs(Math.Sqrt(x*x+y*y)-25)<3 && Math.Abs(y)>5);
+        Check(processor.Classify(image).Mark == CellMark.Unknown, "large separated arcs stay unknown");
+        paint((x,y) => Math.Abs(Math.Sqrt(x*x+y*y)-47)<4);
+        Check(processor.Classify(image).Mark == CellMark.Unknown && processor.DiagnosticReason == "Ink touches crop edge",
+            "cropped symbol remains unknown with explicit reason");
+        for (int y=0; y<n; y++) for (int x=0; x<n; x++) image[y*n+x]=(byte)(x<n/2 ? 130 : 240);
+        Check(processor.Classify(image).Mark == CellMark.Unknown, "sharp shadow is not a mark");
+        paint((x,y) => true);
+        Check(processor.Classify(image).Mark == CellMark.Unknown && processor.DiagnosticReason == "Dark or covered cell",
+            "covered cell has diagnostic reason");
+        paint((x,y) => Math.Abs(Math.Sqrt(x*x+y*y)-25)<3);
+        for (int i=0; i<image.Length; i++) if (image[i]<100) image[i]=215;
+        Check(processor.Classify(image).Mark == CellMark.Circle, "faint but coherent circle");
+        paint((x,y) => Math.Abs(x)<27 && Math.Abs(y)<27 && (Math.Abs(x-y)<4 || Math.Abs(x+y)<4));
+        for (int i=0; i<image.Length; i++) if (image[i]<100) image[i]=215;
+        Check(processor.Classify(image).Mark == CellMark.Cross, "faint but coherent cross");
+        for (int y=0; y<n; y++) for (int x=0; x<n; x++) image[y*n+x]=(byte)(232+(x*19+y*23)%17);
+        Check(processor.Classify(image).Mark == CellMark.Empty, "mild paper noise is empty");
+
         var stabilizer = new CellDetectionStabilizer();
         var circle = new CellClassification(CellMark.Circle,0.9f);
         for (int i=0; i<6; i++) stabilizer.Observe(circle,i,i*0.13);
@@ -63,5 +116,37 @@ public static class RecognitionChecks
         Check(!PerspectiveCellSampler.Sample(source,32,32,new double[]{2,2,26,26,26,2,2,26},output,4), "self crossing rejected");
         Check(!PerspectiveCellSampler.Sample(source,32,32,new double[]{2,2,3,3,4,4,5,5},output,4), "degenerate quad rejected");
         return "PASS: " + checks + " recognition, stabilization, perspective checks. Synthetic images only.";
+    }
+
+    static void AddLightingGradient(byte[] image, int n)
+    {
+        for (int y=0; y<n; y++) for (int x=0; x<n; x++)
+        {
+            int paper=130+110*x/(n-1);
+            double inkOpacity=Math.Max(0,Math.Min(1,(240-image[y*n+x])/225.0));
+            image[y*n+x]=(byte)Math.Round(paper-55*inkOpacity);
+        }
+    }
+
+    static void BlurByDownsampling(byte[] image, int n, int width, int height)
+    {
+        var small = new double[width*height];
+        int sx=n/width, sy=n/height;
+        for (int y=0; y<height; y++) for (int x=0; x<width; x++)
+        {
+            double sum=0;
+            for (int by=0; by<sy; by++) for (int bx=0; bx<sx; bx++) sum+=image[(y*sy+by)*n+x*sx+bx];
+            small[y*width+x]=sum/(sx*sy);
+        }
+        for (int y=0; y<n; y++) for (int x=0; x<n; x++)
+        {
+            double u=Math.Max(0,Math.Min(width-1,(x+0.5)*width/n-0.5));
+            double v=Math.Max(0,Math.Min(height-1,(y+0.5)*height/n-0.5));
+            int x0=(int)u, y0=(int)v, x1=Math.Min(x0+1,width-1), y1=Math.Min(y0+1,height-1);
+            double fx=u-x0, fy=v-y0;
+            double top=small[y0*width+x0]*(1-fx)+small[y0*width+x1]*fx;
+            double bottom=small[y1*width+x0]*(1-fx)+small[y1*width+x1]*fx;
+            image[y*n+x]=(byte)Math.Round(top*(1-fy)+bottom*fy);
+        }
     }
 }

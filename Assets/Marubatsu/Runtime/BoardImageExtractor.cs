@@ -8,7 +8,8 @@ namespace Marubatsu
     public sealed class BoardImageExtractor : MonoBehaviour
     {
         [Range(0, 8)] public int CellIndex = 4;
-        [Range(0.05f, 0.25f)] public float CellInset = 0.12f;
+        // Leave a narrow grid-line margin without clipping normally sized handwritten symbols.
+        [Range(0.03f, 0.25f)] public float CellInset = 0.06f;
         public int MinimumCellPixels = 16;
         const int Size = 96;
         readonly byte[] crop = new byte[Size*Size];
@@ -113,7 +114,7 @@ namespace Marubatsu
         {
             bool fresh = valid && Time.realtimeSinceStartupAsDouble-lastFrame < 0.5;
             if (!fresh && valid) Invalidate("Camera frame stalled");
-            GUI.Box(new Rect(10, 10, 282, 205), "Phase 2 / one-cell recognition");
+            GUI.Box(new Rect(10, 10, 282, 232), "Phase 2 / one-cell recognition");
             GUI.Label(new Rect(20, 34, 260, 22), status);
             if (fresh)
             {
@@ -122,6 +123,7 @@ namespace Marubatsu
                 GUI.DrawTexture(new Rect(20, 78, 96, 96), grayTexture);
                 GUI.DrawTexture(new Rect(160, 78, 96, 96), binaryTexture);
                 GUI.Label(new Rect(20, 178, 260, 24), $"{classification.Mark} / stable: {stabilizer.Stable}");
+                GUI.Label(new Rect(20, 202, 260, 24), recognizer.DiagnosticReason);
                 for (int i = 0; i < 4; i++) DrawEdge(worldCorners[i], worldCorners[(i+1)%4]);
             }
             else GUI.Label(new Rect(20, 78, 260, 90), "Tracking / calibration pending.\nClassification is paused.");
