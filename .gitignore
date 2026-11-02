@@ -22,3 +22,5 @@
 /Assets/Resources/VuforiaConfiguration.asset.meta
 # Obtain the Vuforia SDK separately from its official distributor.
 /Packages/com.ptc.vuforia.engine-*.tgz
+# Vuforia-generated local runtime data.
+/QCAR/

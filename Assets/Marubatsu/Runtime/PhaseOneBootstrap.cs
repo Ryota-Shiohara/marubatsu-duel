@@ -32,6 +32,7 @@ namespace Marubatsu
             }
             target.gameObject.AddComponent<BoardTracker>();
             target.gameObject.AddComponent<BoardPreview>();
+            target.gameObject.AddComponent<BoardImageExtractor>();
             Debug.Log("[Phase1] Instant target ready. Print the board at 180 mm width. " +
                 "This target has not been rated in Target Manager.", this);
         }

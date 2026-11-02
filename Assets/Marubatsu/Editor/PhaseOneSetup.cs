@@ -24,6 +24,8 @@ namespace Marubatsu.Editor
             var cameraObject = new GameObject("ARCamera", typeof(Camera));
             cameraObject.tag = "MainCamera";
             cameraObject.GetComponent<Camera>().nearClipPlane = 0.01f;
+            // Skybox is drawn over Vuforia's video background in the Built-in pipeline.
+            cameraObject.GetComponent<Camera>().clearFlags = CameraClearFlags.SolidColor;
             cameraObject.AddComponent<VuforiaBehaviour>();
             cameraObject.AddComponent<CameraFrameProbe>();
             cameraObject.AddComponent<PhaseOneBootstrap>().BoardTexture =

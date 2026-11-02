@@ -8,7 +8,13 @@
 - 初回の検証で画像のNPOT自動リサイズを検出し、`TextureImporterNPOTScale.None` に修正して再検証した。
 - 最終バッチでC#コンパイルのエラー・警告なし。
 - Git初期化、Unity生成物のignore、tgzのGit LFS属性を確認。コミット・push・デプロイは未実施。
-- ライセンスを設定してのVuforia初期化、実カメラからのCPUコピー、追跡・復帰、星評価は未検証。
+- 初回作成時点ではライセンスを設定してのVuforia初期化、実カメラからのCPUコピー、追跡・復帰、星評価は未検証だった。
+
+### Editorでのカメラ表示確認（2026-11-02）
+
+- ユーザーが設定したローカルライセンスとカメラで、Vuforia初期化と640 × 480 / GRAYSCALE / stride 640 / 307200バイトのCPUコピー成功ログを確認。
+- ARCameraのClear FlagsがSkyboxのままだとGameビューに空が描かれる問題を確認。Solid Colorへ変更してシーンを保存し、再生後に実カメラ映像がGameビューへ表示されることを確認した。生成コードにも同じ設定を反映。
+- 印刷物での盤面追跡・9セルへの配置・消失と復帰・Target Managerの星評価は引き続き未検証。
 
 再確認はUnityメニュー `Marubatsu > Validate Phase 1 Assets`。画像設定を含めて再適用するバッチ用エントリーは `Marubatsu.Editor.PhaseOneSetup.ConfigureAndValidate`。
 
