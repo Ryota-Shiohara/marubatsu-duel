@@ -1,0 +1,24 @@
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/.vs/
+/.idea/
+*.csproj
+*.sln
+*.slnx
+*.user
+*.log
+*.pidb
+*.pdb
+/MemoryCaptures/
+/Recordings/
+/tmp/
+# Local license configuration: configure separately on each developer's PC.
+/Assets/Resources/VuforiaConfiguration.asset
+/Assets/Resources/VuforiaConfiguration.asset.meta
+# Obtain the Vuforia SDK separately from its official distributor.
+/Packages/com.ptc.vuforia.engine-*.tgz
