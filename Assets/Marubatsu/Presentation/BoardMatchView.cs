@@ -4,11 +4,18 @@ namespace Marubatsu.Presentation
 {
     public sealed class BoardMatchView : MonoBehaviour
     {
+        const float TurnPreviewScale = 0.012f;
+        const float TurnPreviewLift = 0.003f;
+        const float TurnPreviewDegreesPerSecond = 60f;
+
         GameSession session;
         BoardTracker tracker;
         BoardPieceView pieces;
         GameObject circlePrefab;
         GameObject crossPrefab;
+        Transform circlePreview;
+        Transform crossPreview;
+        Transform activePreview;
         LineRenderer winningLine;
         Material lineMaterial;
         Vector2 boardSize;
@@ -27,6 +34,10 @@ namespace Marubatsu.Presentation
             content.transform.SetParent(transform, false);
             pieces = content.AddComponent<BoardPieceView>();
             pieces.SetBoardSize(size);
+            circlePreview = CreateTurnPreview(circle, content.transform, "Circle turn preview",
+                BoardGeometry.TurnStandCenter(onLeft: true, targetSize: size));
+            crossPreview = CreateTurnPreview(cross, content.transform, "Cross turn preview",
+                BoardGeometry.TurnStandCenter(onLeft: false, targetSize: size));
 
             var lineObject = new GameObject("Winning line");
             lineObject.transform.SetParent(content.transform, false);
@@ -51,10 +62,44 @@ namespace Marubatsu.Presentation
 
         void OnSnapshotChanged(BoardSnapshot snapshot) => Apply(snapshot, tracker.IsTracked);
 
+        static Transform CreateTurnPreview(GameObject prefab, Transform parent, string name, Vector3 center)
+        {
+            if (prefab == null) return null;
+
+            var pivot = new GameObject(name);
+            pivot.SetActive(false);
+            pivot.transform.SetParent(parent, false);
+            pivot.transform.localPosition = center + Vector3.up * TurnPreviewLift;
+
+            var model = Instantiate(prefab, pivot.transform, false).transform;
+            model.localPosition = Vector3.zero;
+            model.localScale *= TurnPreviewScale;
+            return pivot.transform;
+        }
+
+        void Update()
+        {
+            if (activePreview != null && activePreview.gameObject.activeInHierarchy)
+                activePreview.Rotate(Vector3.up, TurnPreviewDegreesPerSecond * Time.deltaTime, Space.Self);
+        }
+
         void Apply(BoardSnapshot snapshot, bool animate)
         {
             if (snapshot.Revision <= displayedRevision) return;
             displayedRevision = snapshot.Revision;
+
+            Transform nextPreview = snapshot.NextTurn switch
+            {
+                MarkType.Circle => circlePreview,
+                MarkType.Cross => crossPreview,
+                _ => null
+            };
+            if (activePreview != nextPreview)
+            {
+                if (activePreview != null) activePreview.gameObject.SetActive(false);
+                activePreview = nextPreview;
+                if (activePreview != null) activePreview.gameObject.SetActive(true);
+            }
 
             for (int index = 0; index < snapshot.Cells.Length; index++)
             {

@@ -8,8 +8,8 @@ namespace Marubatsu
     public sealed class BoardImageExtractor : MonoBehaviour
     {
         [Range(0, 8)] public int CellIndex = 4;
-        // Leave a narrow grid-line margin without clipping normally sized handwritten symbols.
-        [Range(0.03f, 0.25f)] public float CellInset = 0.06f;
+        // Allow a few millimeters of tracking error before the printed grid enters the crop.
+        [Range(0.03f, 0.25f)] public float CellInset = 0.10f;
         public int MinimumCellPixels = 16;
         const int Size = 96;
         readonly double[] corners = new double[8];

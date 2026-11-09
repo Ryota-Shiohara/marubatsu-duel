@@ -9,11 +9,13 @@ namespace Marubatsu
         public CellMark Stable { get; private set; }
         CellMark candidate;
         int count;
+        bool missedSample;
         double started, previousTime;
         long previousSequence = -1;
         public void Reset()
         {
             Stable = candidate = CellMark.Unknown; count = 0; previousSequence = -1;
+            missedSample = false;
         }
         public void Observe(CellClassification result, long sequence, double time)
         {
@@ -21,7 +23,18 @@ namespace Marubatsu
             if (time < previousTime || (previousSequence >= 0 && time-previousTime > MaximumGap)) Reset();
             previousSequence = sequence; previousTime = time;
             if (result.Mark == CellMark.Unknown || result.Confidence < 0.8f)
-            { Stable = candidate = CellMark.Unknown; count = 0; return; }
+            {
+                // Keep the evidence across one missed sample, but require a readable current frame.
+                Stable = CellMark.Unknown;
+                if (missedSample)
+                {
+                    candidate = CellMark.Unknown;
+                    count = 0;
+                }
+                missedSample = true;
+                return;
+            }
+            missedSample = false;
             if (result.Mark != candidate)
             { candidate = result.Mark; count = 0; started = time; Stable = CellMark.Unknown; }
             count++;

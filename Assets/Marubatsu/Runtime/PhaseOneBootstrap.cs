@@ -4,7 +4,7 @@ using Marubatsu.Presentation;
 
 namespace Marubatsu
 {
-    /// <summary>Instant target for initial experiments; replace with a rated database target later.</summary>
+    /// <summary>Creates the board as an Instant Image Target from the project texture.</summary>
     public sealed class PhaseOneBootstrap : MonoBehaviour
     {
         public Texture2D BoardTexture;
@@ -48,8 +48,7 @@ namespace Marubatsu
                     game.Session, tracker, target.GetSize(), CirclePrefab, CrossPrefab);
             else
                 Debug.LogWarning("[Marubatsu] Assign both character prefabs on PhaseOneBootstrap.", this);
-            Debug.Log("[Phase1] Instant target ready. Print the board at 270 x 180 mm. " +
-                "This target has not been rated in Target Manager.", this);
+            Debug.Log("[Phase1] Instant target ready. Print the board at 270 x 180 mm.", this);
         }
 
         void OnDestroy()

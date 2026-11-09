@@ -3,11 +3,19 @@ using UnityEngine;
 
 namespace Marubatsu
 {
-    /// <summary>Row-major cells viewed from the printed sheet's top edge; target plane is XZ.</summary>
+    /// <summary>Printed board positions in target-local space, with the target plane on XZ.</summary>
     public static class BoardGeometry
     {
         public const float TargetWidthMeters = 0.27f;
         public const float TargetHeightMeters = 0.18f;
+        // Board_A4.svg uses x=410 and x=2290 in the target's 2700-wide viewBox.
+        const float TurnStandOffset = (1350f - 410f) / 2700f;
+
+        public static Vector3 TurnStandCenter(bool onLeft, Vector2 targetSize)
+        {
+            float x = targetSize.x * TurnStandOffset;
+            return new Vector3(onLeft ? -x : x, 0f, 0f);
+        }
 
         public static float CellSize(Vector2 targetSize)
         {

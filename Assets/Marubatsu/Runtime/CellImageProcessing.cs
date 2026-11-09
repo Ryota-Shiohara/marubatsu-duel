@@ -64,15 +64,25 @@ namespace Marubatsu
             if (InkRatio > 0.45f) return Result(CellMark.Unknown, 0, "Too much ink or shadow");
             Array.Clear(visited, 0, visited.Length); Array.Clear(component, 0, component.Length);
             int largest = 0;
+            // Drop isolated specks (up to 7 pixels in a 96 x 96 crop).
+            int speckLimit = Math.Max(1, Binary.Length / 1250);
             for (int i = 0; i < Binary.Length; i++)
             {
                 if (Binary[i] != 0 || visited[i]) continue;
                 int count = Flood(i, true);
+                if (count <= speckLimit)
+                {
+                    ink -= count;
+                    for (int j = 0; j < count; j++) Binary[queue[j]] = 255;
+                    continue;
+                }
                 if (count <= largest) continue;
                 largest = count;
                 Array.Clear(component, 0, component.Length);
                 for (int j = 0; j < count; j++) component[queue[j]] = 1;
             }
+            InkRatio = (float)ink / gray.Length;
+            if (InkRatio < EmptyInkRatio) return Result(CellMark.Empty, 0.95f, "Only isolated specks");
             if (largest < 20) return Result(CellMark.Unknown, 0, "Ink is too small");
             if (largest < ink * 0.85f) return Result(CellMark.Unknown, 0, "Several disconnected strokes");
             int left = size, right = -1, top = size, bottom = -1;

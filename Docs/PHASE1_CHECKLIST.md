@@ -29,19 +29,17 @@
 ## 最初の実機確認
 
 1. Phase1_BoardTrackingを再生する。
-2. `[Phase1] Instant target ready`、`[CameraFrameProbe] CPU copy OK` が出ることを確認。出ない場合は初期化エラー・ライセンス・選択カメラ・形式登録結果を確認する。
+2. `[Phase1] Instant target ready`、`[CameraFrameProbe] CPU copy OK` が出ることを確認。
 3. 紙を映し、`[BoardTracker] TRACKED` と各セル中央の立方体9個を確認する。
 4. 紙を動かして追従を見る。180度回転でもrow/columnの向きが紙について動くことを確認。
 5. 紙を視界から外すと表示が消え、再認識で同じ配置に戻ることを確認。EXTENDED_TRACKEDとLIMITEDでは非表示にする。
 6. 中央に○を記入し、次に全9マスを○×で埋める。これは追跡評価であり、まだ筆跡分類は行わない。
 
-## Target Managerへの登録
+## Target Managerの評価
 
-開発者アカウントでDevice Databaseを作り、`Assets/Marubatsu/Art/BoardTarget.png` をImage Targetとして登録。実寸幅は **0.27 m** を基準とし、Unityで `GetSize()` が0.27 × 0.18になることを確認する。教材の例の100をそのまま入力しない。
+ユーザーが作成したDevice Database `ip-demo` の `boardtarget` はTarget Managerで星4と報告された。このシーンは `BoardTarget.png` からInstant Image Targetを実行時に作るため、Device Databaseパッケージのインポートは不要。評価済みDBを使う方式へ変更する場合は、Unity用パッケージをインポートし、`PhaseOneBootstrap` の生成方法を切り替える。
 
-星評価と黄色い特徴点の分布を確認し、可能なら4～5星を目標とする。データベースのUnity用パッケージをインポートし、VuforiaのImage TargetをFrom Databaseで作成、`BoardTracker` と `BoardPreview` を付ける。標準の `DefaultObserverEventHandler` がある場合は削除し、このハンドラーによる表示管理へ一本化する。
-
-同時に `ARCamera` の `PhaseOneBootstrap` を無効にして、同一盤面をInstant TargetとDB Targetの二重で追跡しない。`CameraFrameProbe` は残す。登録はアカウント操作が必要であり、今回自動実施していない。
+シーン内に別のImage Targetを追加する必要はない。`ARCamera` の `PhaseOneBootstrap` がImage Targetを作り、`BoardTracker` と認識・表示コンポーネントを設定する。`CameraFrameProbe` はそのまま残す。
 
 ## 記録表
 

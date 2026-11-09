@@ -87,6 +87,11 @@ public static class RecognitionChecks
         Check(processor.Classify(image).Mark == CellMark.Cross, "faint but coherent cross");
         for (int y=0; y<n; y++) for (int x=0; x<n; x++) image[y*n+x]=(byte)(232+(x*19+y*23)%17);
         Check(processor.Classify(image).Mark == CellMark.Empty, "mild paper noise is empty");
+        Func<int,int,bool> specks = (x,y) => (x+48)%10 is 4 or 5 && (y+48)%10 is 4 or 5;
+        paint(specks);
+        Check(processor.Classify(image).Mark == CellMark.Empty, "scattered isolated specks do not block empty paper");
+        paint((x,y) => specks(x,y) || Math.Abs(Math.Sqrt(x*x+y*y)-25)<3);
+        Check(processor.Classify(image).Mark == CellMark.Circle, "circle with scattered isolated specks");
 
         var stabilizer = new CellDetectionStabilizer();
         var circle = new CellClassification(CellMark.Circle,0.9f);
@@ -100,6 +105,16 @@ public static class RecognitionChecks
         Check(stabilizer.Stable == CellMark.Unknown, "tracking loss resets consensus");
         for (int i=0; i<8; i++) stabilizer.Observe(new CellClassification(CellMark.Cross,0.5f),i,3+i*0.13);
         Check(stabilizer.Stable == CellMark.Unknown, "low confidence is never stable");
+        stabilizer.Reset();
+        for (int i=0; i<5; i++) stabilizer.Observe(circle,i,i*0.13);
+        stabilizer.Observe(default,5,0.65);
+        Check(stabilizer.Stable == CellMark.Unknown, "unreadable current frame cannot accept a move");
+        stabilizer.Observe(circle,6,0.78);
+        Check(stabilizer.Stable == CellMark.Circle, "one missed frame preserves agreeing observations");
+        stabilizer.Observe(default,7,0.91);
+        stabilizer.Observe(default,8,1.04);
+        stabilizer.Observe(circle,9,1.17);
+        Check(stabilizer.Stable == CellMark.Unknown, "two missed frames require fresh evidence");
 
         var source = new byte[32*32];
         for (int y=0; y<32; y++) for (int x=0; x<32; x++) source[y*32+x]=(byte)(x+3*y);
