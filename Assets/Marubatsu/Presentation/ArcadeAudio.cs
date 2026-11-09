@@ -10,7 +10,9 @@ namespace Marubatsu.Presentation
 
         GameSession session;
         AudioSource music, effects;
+        AudioClip menuMusic, battleMusic, victoryMusic;
         AudioClip select, versus, circle, cross, victory, draw;
+        bool inBattle;
         float duckUntil;
 
         public void Initialize(GameSession game)
@@ -18,11 +20,12 @@ namespace Marubatsu.Presentation
             session = game;
             music = CreateSource();
             effects = CreateSource();
-            music.clip = Load("Blueberry_Bounce");
             music.loop = true;
-            music.volume = MusicVolume;
             effects.volume = .68f;
 
+            menuMusic = Load("Blueberry_Bounce");
+            battleMusic = Load("Crown_of_the_Arena");
+            victoryMusic = Load("Podium_Finish");
             select = Load("Select");
             versus = Load("Versus");
             circle = Load("Circle");
@@ -30,7 +33,7 @@ namespace Marubatsu.Presentation
             victory = Load("Victory");
             draw = Load("Draw");
             session.OnSnapshotChanged += OnSnapshotChanged;
-            if (music.clip != null) music.Play();
+            SwitchMusic(menuMusic);
         }
 
         AudioSource CreateSource()
@@ -49,11 +52,33 @@ namespace Marubatsu.Presentation
         }
 
         public void PlaySelect() => Play(select);
-        public void PlayVersus() => Play(versus, duckMusic: true);
+        public void PlayVersus()
+        {
+            effects.Stop();
+            Play(versus, duckMusic: true);
+        }
+
+        public void BeginBattle()
+        {
+            inBattle = true;
+            SwitchMusic(battleMusic);
+        }
+
+        public void LeaveBattle()
+        {
+            inBattle = false;
+            SwitchMusic(menuMusic);
+        }
 
         void OnSnapshotChanged(BoardSnapshot snapshot)
         {
-            if (!snapshot.LastMove.HasValue) return;
+            if (!inBattle) return;
+            if (!snapshot.LastMove.HasValue)
+            {
+                SwitchMusic(battleMusic);
+                return;
+            }
+
             switch (snapshot.Outcome)
             {
                 case OutcomeType.Playing:
@@ -64,9 +89,19 @@ namespace Marubatsu.Presentation
                     break;
                 case OutcomeType.CircleWon:
                 case OutcomeType.CrossWon:
+                    SwitchMusic(victoryMusic);
                     Play(victory, duckMusic: true);
                     break;
             }
+        }
+
+        void SwitchMusic(AudioClip clip)
+        {
+            if (clip == null || music.clip == clip) return;
+            music.Stop();
+            music.clip = clip;
+            music.volume = Time.unscaledTime < duckUntil ? DuckVolume : MusicVolume;
+            music.Play();
         }
 
         void Play(AudioClip clip, bool duckMusic = false)

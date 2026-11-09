@@ -15,6 +15,7 @@ namespace Marubatsu
         BoardMatchView matchView;
         TicTacToeGameManager game;
         MatchHud hud;
+        ArcadeAudio matchAudio;
         GameObject[] roster;
         GameObject selectedCircle, selectedCross;
         VictoryFighter circleFighter, crossFighter;
@@ -31,7 +32,7 @@ namespace Marubatsu
             game = GetComponent<TicTacToeGameManager>();
             if (game == null) game = gameObject.AddComponent<TicTacToeGameManager>();
             if (!TryGetComponent<AudioListener>(out _)) gameObject.AddComponent<AudioListener>();
-            var matchAudio = gameObject.AddComponent<ArcadeAudio>();
+            matchAudio = gameObject.AddComponent<ArcadeAudio>();
             matchAudio.Initialize(game.Session);
             hud = gameObject.AddComponent<MatchHud>();
             roster = characters.Prefabs;
@@ -70,6 +71,7 @@ namespace Marubatsu
             circleFighter = (VictoryFighter)circle;
             crossFighter = (VictoryFighter)cross;
             AttachMatch();
+            matchAudio.BeginBattle();
         }
 
         void AttachMatch()
@@ -86,6 +88,7 @@ namespace Marubatsu
 
         void EndMatch()
         {
+            matchAudio.LeaveBattle();
             selectedCircle = selectedCross = null;
             if (extractor != null) extractor.AttachGame(null);
             if (matchView != null)
