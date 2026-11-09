@@ -8,6 +8,7 @@ namespace Marubatsu
     public sealed class PhaseOneBootstrap : MonoBehaviour
     {
         public Texture2D BoardTexture;
+        [SerializeField] VictorySequenceController.Settings victorySettings = new VictorySequenceController.Settings();
         ImageTargetBehaviour target;
         BoardTracker tracker;
         BoardImageExtractor extractor;
@@ -16,6 +17,7 @@ namespace Marubatsu
         MatchHud hud;
         GameObject[] roster;
         GameObject selectedCircle, selectedCross;
+        VictoryFighter circleFighter, crossFighter;
 
         void Start()
         {
@@ -30,7 +32,8 @@ namespace Marubatsu
             if (game == null) game = gameObject.AddComponent<TicTacToeGameManager>();
             hud = gameObject.AddComponent<MatchHud>();
             roster = characters.Prefabs;
-            hud.Initialize(game.Session, roster, characters.Portraits, BeginMatch, EndMatch);
+            hud.Initialize(game.Session, roster, characters.Portraits, BeginMatch, EndMatch,
+                game.ResetGame, () => matchView != null && matchView.CanReplay);
             VuforiaApplication.Instance.OnVuforiaStarted += OnStarted;
             if (VuforiaApplication.Instance.IsRunning) OnStarted();
         }
@@ -61,6 +64,8 @@ namespace Marubatsu
         {
             selectedCircle = roster[circle];
             selectedCross = roster[cross];
+            circleFighter = (VictoryFighter)circle;
+            crossFighter = (VictoryFighter)cross;
             AttachMatch();
         }
 
@@ -71,7 +76,8 @@ namespace Marubatsu
             var matchObject = new GameObject("Board match");
             matchObject.transform.SetParent(target.transform, false);
             matchView = matchObject.AddComponent<BoardMatchView>();
-            matchView.Initialize(game.Session, tracker, target.GetSize(), selectedCircle, selectedCross);
+            matchView.Initialize(game.Session, tracker, target.GetSize(),
+                selectedCircle, selectedCross, circleFighter, crossFighter, victorySettings);
             extractor.AttachGame(game.Session);
         }
 

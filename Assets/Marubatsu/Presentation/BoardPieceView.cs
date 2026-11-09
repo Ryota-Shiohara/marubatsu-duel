@@ -24,7 +24,7 @@ namespace Marubatsu.Presentation
             public Transform LeftLeg, RightLeg;
             public Quaternion LeftRest, RightRest;
             public Vector3 LeftAxis, RightAxis;
-            public bool Floats;
+            public bool Floats, PoseControlled;
             public float Age, ReactionTime, MotionWeight = 1f;
         }
 
@@ -149,13 +149,28 @@ namespace Marubatsu.Presentation
             piece.Animator.SetTrigger(trigger);
         }
 
+        internal bool TryControlPose(int index, out Transform pivot, out Animator animator)
+        {
+            Piece piece = pieces[index];
+            pivot = piece?.Pivot;
+            animator = piece?.Animator;
+            if (piece == null) return false;
+            piece.PoseControlled = true;
+            return true;
+        }
+
+        internal void ReleasePose(int index)
+        {
+            if (pieces[index] != null) pieces[index].PoseControlled = false;
+        }
+
         void LateUpdate()
         {
             float cellSize = BoardGeometry.CellSize(boardSize);
             for (int index = 0; index < pieces.Length; index++)
             {
                 Piece piece = pieces[index];
-                if (piece == null) continue;
+                if (piece == null || piece.PoseControlled) continue;
                 piece.Age += Time.deltaTime;
                 piece.ReactionTime = Mathf.Max(0f, piece.ReactionTime - Time.deltaTime);
                 piece.MotionWeight = Mathf.MoveTowards(piece.MotionWeight,

@@ -57,3 +57,13 @@ FBXの単位はFBX側に記録し、ボーンやメッシュに100倍スケー�
 `Marubatsu > Characters > Render Animation Previews` でUnity標準のプレビュー専用環境を使い、各サンプルを適用したメッシュ画像を `ArtSource/<名前>/<名前>_unity_idle.png` などへ出力できる。実際のゲームシーンは変更しない。Unityでの最終検証ログは `Logs/character-animation-final.log`。
 
 矢口くんもUnity 6000.3.24f1で取り込み・テクスチャ・変形・実描画を確認済み。4,433三角形、7本の骨、3つのまばたき。専用ログは `Logs/yaguchi-animation.log`。矢口くんだけのサンプルを再生成するバッチ用エントリポイントは `Marubatsu.Editor.CharacterAnimationSetup.PrepareYaguchi`（同キャラのサンプルクリップを上書きする）。
+
+## AR勝利演出
+
+`Assets/Marubatsu/Resources/MarubatsuVictory/` のFBXは、既存の3体のリグに適用するアニメーション専用ファイル。各FBXに `VictoryTakeoff`、`VictorySpin`、`VictoryPose`、`VictoryLoop`、`Defeat` の5クリップがある。FBXのルート階層を保持するため、Unityのインポート設定で **Preserve Hierarchy** を有効にする。
+
+Blender 4.1で `blender --background --factory-startup --python-exit-code 1 --python Tools/victory_actions.py` を実行すると、既存の `*_Rigged.blend` から勝利用FBXのみを生成する。Unityの `Marubatsu > Characters > Validate Victory Clips` で、現在の対戦用Prefabのボーン階層にクリップが適用され、スキンが変形することを検証できる。
+
+`Phase1_BoardTracking` のARCameraにある `PhaseOneBootstrap` の **Victory Settings** で、各段階の時間、浮上高さ、登場間隔、回転の緩急、リング半径、粒子数を調整できる。既定の演出は4秒。勝利表示後も3体は盤面上で浮遊し、画面下部に再戦とキャラクター選択が表示される。
+
+実紙では、いつもの印刷用紙で対戦を開始して○・×それぞれの勝利を作る。縦・横・斜めの勝利で3体だけが浮上すること、紙を動かしたり傾けたりしたときにキャラクター・光・勝者名が同じ位置関係を保つことを確認する。途中で紙を画角から外して戻し、演出が続きから再開することを確認する。再戦時は空の用紙を使う。途中リセットは `R` キーでも確認できる。

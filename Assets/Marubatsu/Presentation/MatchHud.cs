@@ -10,11 +10,6 @@ namespace Marubatsu.Presentation
         static readonly Color SecondaryText = new Color32(203, 213, 225, 255);
         static readonly Color CircleAccent = new Color32(125, 211, 252, 255);
         static readonly Color CrossAccent = new Color32(253, 186, 116, 255);
-        static readonly Color ResultAccent = new Color32(253, 224, 133, 255);
-        static readonly string[] JapaneseFonts =
-            { "Yu Gothic UI", "Meiryo", "Yu Gothic", "メイリオ", "游ゴシック", "Noto Sans CJK JP" };
-        static readonly string[] JapaneseNames = { "やがぽん", "みたぬき", "矢口君" };
-        static readonly string[] EnglishNames = { "Yagapon", "Mitanuki", "Yaguchi" };
 
         GameSession session;
         BoardSnapshot snapshot;
@@ -26,12 +21,13 @@ namespace Marubatsu.Presentation
         GameObject[] roster;
         Texture2D[] portraits;
         Action<int, int> beginMatch;
-        Action endMatch;
+        Action endMatch, restartMatch;
+        Func<bool> canReplay;
         int circleChoice, crossChoice = 2;
         bool choosing = true, pickingCircle = true;
 
         public void Initialize(GameSession game, GameObject[] characters, Texture2D[] characterPortraits,
-            Action<int, int> onBegin, Action onEnd)
+            Action<int, int> onBegin, Action onEnd, Action onRestart, Func<bool> canReplay)
         {
             session = game;
             snapshot = session.GetSnapshot();
@@ -39,6 +35,8 @@ namespace Marubatsu.Presentation
             portraits = characterPortraits;
             beginMatch = onBegin;
             endMatch = onEnd;
+            restartMatch = onRestart;
+            this.canReplay = canReplay;
             session.OnSnapshotChanged += OnSnapshotChanged;
         }
 
@@ -60,22 +58,24 @@ namespace Marubatsu.Presentation
                 return;
             }
             if (extractor != null && extractor.DiagnosticsVisible) return;
+            if (snapshot.Outcome != OutcomeType.Playing)
+            {
+                DrawResultControls();
+                return;
+            }
 
             Rect safeArea = Screen.safeArea;
             float width = Mathf.Min(560, safeArea.width - 24);
             if (width <= 32) return;
             float x = safeArea.center.x - width / 2;
             float y = Screen.height - safeArea.yMax + 12;
-            bool finished = snapshot.Outcome != OutcomeType.Playing;
-            bool inlineButton = finished && width >= 460;
-            float textWidth = width - 36 - (inlineButton ? 140 : 0);
+            float textWidth = width - 36;
             headlineStyle.fontSize = width >= 340 ? 24 : 19;
             var (headline, detail, accent) = Message();
 
             float headlineHeight = Mathf.Max(32, headlineStyle.CalcHeight(new GUIContent(headline), textWidth));
             float detailHeight = Mathf.Max(40, detailStyle.CalcHeight(new GUIContent(detail), textWidth));
-            float bodyHeight = 44 + headlineHeight + detailHeight;
-            float panelHeight = bodyHeight + (finished && !inlineButton ? 52 : 0);
+            float panelHeight = 44 + headlineHeight + detailHeight;
 
             Fill(new Rect(x, y, width, panelHeight), Panel);
             Fill(new Rect(x, y, 4, panelHeight), accent);
@@ -84,16 +84,28 @@ namespace Marubatsu.Presentation
             GUI.Label(new Rect(x + 18, y + 34, textWidth, headlineHeight), headline, headlineStyle);
             GUI.Label(new Rect(x + 18, y + 34 + headlineHeight, textWidth, detailHeight), detail, detailStyle);
 
-            if (finished)
+        }
+
+        void DrawResultControls()
+        {
+            Rect safe = Screen.safeArea;
+            float width = Mathf.Min(300, safe.width - 16);
+            float x = safe.center.x - width / 2;
+            float y = Screen.height - safe.yMin - 50;
+            if (!canReplay())
             {
-                var button = inlineButton
-                    ? new Rect(x + width - 142, y + (bodyHeight - 44) / 2, 124, 44)
-                    : new Rect(x + 18, y + bodyHeight - 4, width - 36, 44);
-                if (GUI.Button(button, Text("次の対戦", "Play again"), buttonStyle))
-                {
-                    choosing = pickingCircle = true;
-                    endMatch();
-                }
+                if (tracker == null || !tracker.IsTracked)
+                    GUI.Label(new Rect(x, y, width, 34), Text("盤面を映してください", "Show the board"), cardNameStyle);
+                return;
+            }
+
+            float half = (width - 8) / 2;
+            if (GUI.Button(new Rect(x, y, half, 42), Text("同じキャラで再戦", "Rematch"), buttonStyle))
+                restartMatch();
+            if (GUI.Button(new Rect(x + half + 8, y, half, 42), Text("キャラ選択", "Characters"), buttonStyle))
+            {
+                choosing = pickingCircle = true;
+                endMatch();
             }
         }
 
@@ -183,20 +195,10 @@ namespace Marubatsu.Presentation
             GUI.Label(rect, symbol, cardNameStyle);
         }
 
-        string CharacterName(int index) => Text(JapaneseNames[index], EnglishNames[index]);
+        string CharacterName(int index) => MatchCharacterRoster.CharacterName(index, font != null);
 
         (string headline, string detail, Color accent) Message()
         {
-            switch (snapshot.Outcome)
-            {
-                case OutcomeType.CircleWon:
-                    return (Text($"○ {CharacterName(circleChoice)}の勝ち", $"O  {CharacterName(circleChoice)} wins"), NextMatchHint(), CircleAccent);
-                case OutcomeType.CrossWon:
-                    return (Text($"× {CharacterName(crossChoice)}の勝ち", $"X  {CharacterName(crossChoice)} wins"), NextMatchHint(), CrossAccent);
-                case OutcomeType.Draw:
-                    return (Text("引き分け", "Draw"), NextMatchHint(), ResultAccent);
-            }
-
             if (tracker == null || !tracker.IsTracked)
                 return (Text("盤面を映してください", "Show the board"),
                     Text("外周の模様までカメラに入れてください。", "Keep the whole border in the camera view."),
@@ -239,20 +241,11 @@ namespace Marubatsu.Presentation
             }
         }
 
-        string NextMatchHint() => Text("次の対戦には空の盤面を用意してください。", "Have an empty board ready for the next match.");
-
         string Text(string japanese, string english) => font != null ? japanese : english;
 
         void InitializeStyles()
         {
-            string[] installed = Font.GetOSInstalledFontNames();
-            foreach (string candidate in JapaneseFonts)
-            {
-                if (!Array.Exists(installed, name => string.Equals(name, candidate, StringComparison.OrdinalIgnoreCase)))
-                    continue;
-                font = Font.CreateDynamicFontFromOSFont(candidate, 16);
-                if (font != null) break;
-            }
+            font = MatchCharacterRoster.CreateJapaneseFont(16);
 
             captionStyle = LabelStyle(12, FontStyle.Bold, SecondaryText);
             headlineStyle = LabelStyle(24, FontStyle.Bold, PrimaryText);

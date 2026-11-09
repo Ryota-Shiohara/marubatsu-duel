@@ -13,28 +13,25 @@ namespace Marubatsu.Presentation
         GameSession session;
         BoardTracker tracker;
         BoardPieceView pieces;
-        GameObject circlePrefab;
-        GameObject crossPrefab;
-        Transform circlePreview;
-        Transform crossPreview;
-        Transform activePreview;
-        LineRenderer winningLine;
-        ParticleSystem criticalBurst;
-        Material lineMaterial;
-        Vector2 boardSize;
-        float lineWidth;
-        float criticalTime;
-        Color victoryColor;
+        VictorySequenceController victory;
+        GameObject circlePrefab, crossPrefab;
+        VictoryFighter circleFighter, crossFighter;
+        Transform circlePreview, crossPreview, activePreview;
+        Material ringMaterial;
         int displayedRevision = -1;
 
+        public bool CanReplay => victory != null && victory.CanReplay;
+
         public void Initialize(GameSession game, BoardTracker boardTracker, Vector2 size,
-            GameObject circle, GameObject cross)
+            GameObject circle, GameObject cross, VictoryFighter circleCharacter, VictoryFighter crossCharacter,
+            VictorySequenceController.Settings victorySettings = null)
         {
             session = game;
             tracker = boardTracker;
-            boardSize = size;
             circlePrefab = circle;
             crossPrefab = cross;
+            circleFighter = circleCharacter;
+            crossFighter = crossCharacter;
 
             var content = new GameObject("Match presentation");
             content.transform.SetParent(transform, false);
@@ -45,30 +42,15 @@ namespace Marubatsu.Presentation
             crossPreview = CreateTurnPreview(cross, content.transform, "Cross turn preview",
                 BoardGeometry.TurnStandCenter(onLeft: false, targetSize: size));
 
-            var lineObject = new GameObject("Winning line");
-            lineObject.transform.SetParent(content.transform, false);
-            winningLine = lineObject.AddComponent<LineRenderer>();
-            winningLine.enabled = false;
-            winningLine.useWorldSpace = false;
-            winningLine.positionCount = 2;
-            lineWidth = Mathf.Min(size.x, size.y) * 0.018f;
-            winningLine.widthMultiplier = lineWidth;
-            winningLine.numCapVertices = 4;
             var shader = Shader.Find("Sprites/Default");
-            if (shader != null)
-            {
-                lineMaterial = new Material(shader);
-                winningLine.sharedMaterial = lineMaterial;
-                criticalBurst = CreateCriticalBurst(content.transform);
-            }
-
-            tracker.TrackingChanged += SetVisible;
-            session.OnSnapshotChanged += OnSnapshotChanged;
-            SetVisible(tracker.IsTracked);
-            Apply(session.GetSnapshot(), animate: false);
+            if (shader != null) ringMaterial = new Material(shader);
+            victory = content.AddComponent<VictorySequenceController>();
+            victory.Build(pieces, size, victorySettings);
+            if (tracker != null) tracker.TrackingChanged += SetVisible;
+            session.OnSnapshotChanged += Apply;
+            Apply(session.GetSnapshot());
+            SetVisible(tracker == null || tracker.IsTracked);
         }
-
-        void OnSnapshotChanged(BoardSnapshot snapshot) => Apply(snapshot, tracker.IsTracked);
 
         static Transform CreateTurnPreview(GameObject prefab, Transform parent, string name, Vector3 center)
         {
@@ -89,16 +71,13 @@ namespace Marubatsu.Presentation
         {
             if (activePreview != null && activePreview.gameObject.activeInHierarchy)
                 activePreview.Rotate(Vector3.up, TurnPreviewDegreesPerSecond * Time.deltaTime, Space.Self);
-
-            if (criticalTime <= 0f || !winningLine.enabled) return;
-            criticalTime = Mathf.Max(0f, criticalTime - Time.deltaTime);
-            UpdateVictoryLine(criticalTime / 0.65f);
         }
 
-        void Apply(BoardSnapshot snapshot, bool animate)
+        void Apply(BoardSnapshot snapshot)
         {
             if (snapshot.Revision <= displayedRevision) return;
             displayedRevision = snapshot.Revision;
+            if (snapshot.Outcome == OutcomeType.Playing) victory.Stop();
 
             Transform nextPreview = snapshot.NextTurn switch
             {
@@ -118,89 +97,28 @@ namespace Marubatsu.Presentation
                 MarkType mark = snapshot.Cells[index];
                 GameObject prefab = mark == MarkType.Circle ? circlePrefab :
                     mark == MarkType.Cross ? crossPrefab : null;
-                pieces.SetCell(index, prefab, mark == MarkType.Circle ? CircleColor : CrossColor, lineMaterial);
+                pieces.SetCell(index, prefab, mark == MarkType.Circle ? CircleColor : CrossColor, ringMaterial);
             }
 
-            winningLine.enabled = snapshot.WinningCells.Length == 3;
-            if (winningLine.enabled)
-            {
-                Vector3 lift = Vector3.up * (Mathf.Min(boardSize.x, boardSize.y) * 0.025f);
-                winningLine.SetPosition(0, BoardGeometry.CellCenter(snapshot.WinningCells[0], boardSize) + lift);
-                winningLine.SetPosition(1, BoardGeometry.CellCenter(snapshot.WinningCells[2], boardSize) + lift);
-                victoryColor = snapshot.Outcome == OutcomeType.CircleWon ? CircleColor : CrossColor;
-                criticalTime = animate ? 0.65f : 0f;
-                UpdateVictoryLine(animate ? 1f : 0f);
-                if (animate)
-                {
-                    foreach (int cell in snapshot.WinningCells)
-                        pieces.PlayAnimation(cell, "Victory");
-                    PlayCriticalBurst(snapshot.WinningCells, lift);
-                }
-            }
-            else if (animate && snapshot.LastMove.HasValue && snapshot.LastMove.Value.CellIndex == 4)
+            if (snapshot.Outcome != OutcomeType.Playing)
+                victory.Begin(snapshot, circleFighter, crossFighter);
+            else if ((tracker == null || tracker.IsTracked) && snapshot.LastMove.HasValue &&
+                snapshot.LastMove.Value.CellIndex == 4)
                 pieces.PlayAnimation(4, "Wave");
         }
 
-        ParticleSystem CreateCriticalBurst(Transform parent)
+        public void SetVisible(bool visible)
         {
-            var burstObject = new GameObject("Critical victory burst");
-            burstObject.transform.SetParent(parent, false);
-            var burst = burstObject.AddComponent<ParticleSystem>();
-            burst.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            var main = burst.main;
-            main.playOnAwake = false;
-            main.loop = false;
-            main.startLifetime = new ParticleSystem.MinMaxCurve(0.28f, 0.6f);
-            main.startSize = new ParticleSystem.MinMaxCurve(lineWidth * 0.6f, lineWidth * 1.4f);
-            main.simulationSpace = ParticleSystemSimulationSpace.Local;
-            main.maxParticles = 48;
-            var emission = burst.emission;
-            emission.enabled = false;
-            var shape = burst.shape;
-            shape.enabled = false;
-            burst.GetComponent<ParticleSystemRenderer>().sharedMaterial = lineMaterial;
-            return burst;
-        }
-
-        void PlayCriticalBurst(int[] winningCells, Vector3 lift)
-        {
-            if (criticalBurst == null) return;
-            criticalBurst.Play();
-            float speed = BoardGeometry.CellSize(boardSize) * 1.8f;
-            foreach (int cell in winningCells)
-            {
-                Vector3 center = BoardGeometry.CellCenter(cell, boardSize) + lift;
-                for (int ray = 0; ray < 14; ray++)
-                {
-                    float angle = ray * (2f * Mathf.PI / 14f);
-                    var particle = new ParticleSystem.EmitParams
-                    {
-                        position = center,
-                        velocity = new Vector3(Mathf.Cos(angle), 0.24f, Mathf.Sin(angle)) * speed,
-                        startColor = ray % 3 == 0 ? victoryColor : new Color32(255, 220, 128, 255)
-                    };
-                    criticalBurst.Emit(particle, 1);
-                }
-            }
-        }
-
-        void UpdateVictoryLine(float flash)
-        {
-            Color color = Color.Lerp(victoryColor, new Color32(255, 238, 174, 255), flash);
-            winningLine.startColor = winningLine.endColor = color;
-            winningLine.widthMultiplier = lineWidth * (1f + flash * 2f);
-        }
-
-        void SetVisible(bool visible)
-        {
+            if (!visible) victory.Pause(true);
             pieces.gameObject.SetActive(visible);
+            if (visible) victory.Pause(false);
         }
 
         void OnDestroy()
         {
             if (tracker != null) tracker.TrackingChanged -= SetVisible;
-            if (session != null) session.OnSnapshotChanged -= OnSnapshotChanged;
-            if (lineMaterial != null) Destroy(lineMaterial);
+            if (session != null) session.OnSnapshotChanged -= Apply;
+            if (ringMaterial != null) Destroy(ringMaterial);
         }
     }
 }
