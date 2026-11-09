@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Marubatsu.Presentation
 {
@@ -7,8 +8,8 @@ namespace Marubatsu.Presentation
         const float TurnPreviewScale = 0.012f;
         const float TurnPreviewLift = 0.003f;
         const float TurnPreviewDegreesPerSecond = 60f;
-        static readonly Color CircleColor = new Color32(125, 211, 252, 255);
-        static readonly Color CrossColor = new Color32(253, 141, 99, 255);
+        static readonly Color CircleColor = ArcadeHudArt.Ice;
+        static readonly Color CrossColor = ArcadeHudArt.Flame;
 
         GameSession session;
         BoardTracker tracker;
@@ -42,8 +43,12 @@ namespace Marubatsu.Presentation
             crossPreview = CreateTurnPreview(cross, content.transform, "Cross turn preview",
                 BoardGeometry.TurnStandCenter(onLeft: false, targetSize: size));
 
-            var shader = Shader.Find("Sprites/Default");
-            if (shader != null) ringMaterial = new Material(shader);
+            var shader = Resources.Load<Shader>("MarubatsuVictory/VictoryLight");
+            if (shader != null)
+            {
+                ringMaterial = new Material(shader);
+                ringMaterial.SetFloat("_Destination", (float)BlendMode.OneMinusSrcAlpha);
+            }
             victory = content.AddComponent<VictorySequenceController>();
             victory.Build(pieces, size, victorySettings);
             if (tracker != null) tracker.TrackingChanged += SetVisible;

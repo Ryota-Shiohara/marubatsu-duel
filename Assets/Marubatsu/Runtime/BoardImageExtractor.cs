@@ -37,13 +37,23 @@ namespace Marubatsu
         public PaperMoveStatus PaperStatus { get; private set; }
         public bool DiagnosticsVisible { get; private set; }
         public bool HasFreshFrame => hasFrame && Time.realtimeSinceStartupAsDouble - lastFrame < 0.5;
+        public bool IsEmptyBoardStable { get; private set; }
 
         public void AttachGame(GameSession game)
         {
             if (session != null) session.OnSnapshotChanged -= OnGameChanged;
             session = game;
             paperInput = session != null ? new PaperMoveInput(session) : null;
-            if (session != null) session.OnSnapshotChanged += OnGameChanged;
+            if (session != null)
+            {
+                session.OnSnapshotChanged += OnGameChanged;
+                if (IsEmptyBoardStable && HasFreshFrame)
+                {
+                    // Carry the blank board verified by the scan screen into the first turn.
+                    PaperStatus = paperInput.Observe(stableCells);
+                    return;
+                }
+            }
             Invalidate("Waiting for game board");
         }
 
@@ -70,6 +80,7 @@ namespace Marubatsu
         void Invalidate(string reason)
         {
             hasFrame = selectedValid = false;
+            IsEmptyBoardStable = false;
             status = reason;
             PaperStatus = PaperMoveStatus.WaitingForStableCells;
             lastLogged = CellMark.Unknown;
@@ -132,12 +143,14 @@ namespace Marubatsu
             }
             hasFrame = true;
             lastFrame = frame.Time;
-            if (paperInput != null)
+            bool empty = true;
+            for (int index = 0; index < stableCells.Length; index++)
             {
-                for (int index = 0; index < stableCells.Length; index++)
-                    stableCells[index] = recognition.StableAt(index);
-                PaperStatus = paperInput.Observe(stableCells);
+                stableCells[index] = recognition.StableAt(index);
+                empty &= stableCells[index] == CellMark.Empty;
             }
+            IsEmptyBoardStable = empty;
+            if (paperInput != null) PaperStatus = paperInput.Observe(stableCells);
         }
 
         string ProjectCell(GrayCameraFrame frame, Matrix4x4 cellToWorld, Vector3 center,

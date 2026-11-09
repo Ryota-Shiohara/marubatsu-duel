@@ -32,8 +32,8 @@ namespace Marubatsu
             if (game == null) game = gameObject.AddComponent<TicTacToeGameManager>();
             hud = gameObject.AddComponent<MatchHud>();
             roster = characters.Prefabs;
-            hud.Initialize(game.Session, roster, characters.Portraits, BeginMatch, EndMatch,
-                game.ResetGame, () => matchView != null && matchView.CanReplay);
+            hud.Initialize(game.Session, characters.Portraits, BeginMatch, EndMatch,
+                () => matchView != null && matchView.CanReplay);
             VuforiaApplication.Instance.OnVuforiaStarted += OnStarted;
             if (VuforiaApplication.Instance.IsRunning) OnStarted();
         }
@@ -55,7 +55,7 @@ namespace Marubatsu
             }
             tracker = target.gameObject.AddComponent<BoardTracker>();
             extractor = target.gameObject.AddComponent<BoardImageExtractor>();
-            hud.AttachBoard(tracker, extractor);
+            hud.AttachBoard(tracker, extractor, GetComponent<Camera>(), target.GetSize());
             AttachMatch();
             Debug.Log("[Phase1] Instant target ready. Print the board at 270 x 180 mm.", this);
         }

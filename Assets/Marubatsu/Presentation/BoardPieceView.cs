@@ -19,7 +19,9 @@ namespace Marubatsu.Presentation
         sealed class Piece
         {
             public GameObject Prefab;
-            public Transform Anchor, Pivot;
+            public Transform Anchor, Pivot, Portal;
+            public LineRenderer PortalGlow;
+            public Color Tint;
             public Animator Animator;
             public Transform LeftLeg, RightLeg;
             public Quaternion LeftRest, RightRest;
@@ -49,7 +51,9 @@ namespace Marubatsu.Presentation
             anchor.SetParent(transform, false);
             anchor.localPosition = center;
             float cellSize = BoardGeometry.CellSize(boardSize);
-            if (ringMaterial != null) DrawCellRing(anchor, cellSize, tint, ringMaterial);
+            LineRenderer portalGlow = null;
+            Transform portal = ringMaterial != null
+                ? CreateCellPortal(anchor, cellSize, tint, ringMaterial, out portalGlow) : null;
 
             var pivot = new GameObject("Character motion").transform;
             pivot.SetParent(anchor, false);
@@ -64,6 +68,9 @@ namespace Marubatsu.Presentation
                 Prefab = prefab,
                 Anchor = anchor,
                 Pivot = pivot,
+                Portal = portal,
+                PortalGlow = portalGlow,
+                Tint = tint,
                 Animator = model.GetComponentInChildren<Animator>()
             };
             foreach (Transform bone in model.GetComponentsInChildren<Transform>())
@@ -89,27 +96,40 @@ namespace Marubatsu.Presentation
             PosePiece(piece, index, cellSize);
         }
 
-        static void DrawCellRing(Transform anchor, float cellSize, Color tint, Material material)
+        static Transform CreateCellPortal(Transform anchor, float size, Color tint, Material material,
+            out LineRenderer glow)
         {
-            const int segments = 32;
-            var ringObject = new GameObject("Cell marker");
-            ringObject.transform.SetParent(anchor, false);
-            ringObject.transform.localPosition = Vector3.up * (cellSize * 0.04f);
+            var portal = new GameObject("Cell energy portal").transform;
+            portal.SetParent(anchor, false);
+            portal.localPosition = Vector3.up * (size * .055f);
+            glow = DrawCellRing(portal, size * .38f, size * .23f, tint, material);
+            Color rim = Color.Lerp(tint, new Color(.02f, .07f, .19f), .39f);
+            DrawCellRing(portal, size * .39f, size * .09f, rim, material);
+            DrawCellRing(portal, size * .47f, size * .07f, tint, material, turns: .82f);
+            return portal;
+        }
+
+        static LineRenderer DrawCellRing(Transform parent, float radius, float width, Color tint,
+            Material material, float turns = 1)
+        {
+            const int segments = 48;
+            var ringObject = new GameObject("Energy ring");
+            ringObject.transform.SetParent(parent, false);
             ringObject.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             var ring = ringObject.AddComponent<LineRenderer>();
             ring.useWorldSpace = false;
             ring.alignment = LineAlignment.TransformZ;
-            ring.loop = true;
+            ring.loop = turns >= 1;
             ring.sharedMaterial = material;
             ring.startColor = ring.endColor = tint;
-            ring.widthMultiplier = cellSize * 0.035f;
-            ring.positionCount = segments;
-            for (int index = 0; index < segments; index++)
+            ring.widthMultiplier = width;
+            ring.positionCount = ring.loop ? segments : segments + 1;
+            for (int index = 0; index < ring.positionCount; index++)
             {
-                float angle = index * (2f * Mathf.PI / segments);
-                ring.SetPosition(index, new Vector3(Mathf.Cos(angle) * cellSize * 0.33f,
-                    Mathf.Sin(angle) * cellSize * 0.33f, 0f));
+                float angle = index * (turns * 2f * Mathf.PI / segments);
+                ring.SetPosition(index, new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, 0f));
             }
+            return ring;
         }
 
         void FitModel(Transform model, Transform pivot)
@@ -172,6 +192,15 @@ namespace Marubatsu.Presentation
                 Piece piece = pieces[index];
                 if (piece == null || piece.PoseControlled) continue;
                 piece.Age += Time.deltaTime;
+                if (piece.Portal != null)
+                {
+                    float arrival = Mathf.Clamp01(piece.Age * 2);
+                    piece.Portal.localScale = Vector3.one * Mathf.SmoothStep(.68f, 1f, arrival);
+                    piece.Portal.localRotation = Quaternion.Euler(0, piece.Age * 82, 0);
+                    Color tint = piece.Tint;
+                    tint.a = .38f + (1 - arrival) * .42f + Mathf.Sin(piece.Age * 3) * .09f;
+                    piece.PortalGlow.startColor = piece.PortalGlow.endColor = tint;
+                }
                 piece.ReactionTime = Mathf.Max(0f, piece.ReactionTime - Time.deltaTime);
                 piece.MotionWeight = Mathf.MoveTowards(piece.MotionWeight,
                     piece.ReactionTime > 0f ? 0f : 1f, Time.deltaTime * 5f);

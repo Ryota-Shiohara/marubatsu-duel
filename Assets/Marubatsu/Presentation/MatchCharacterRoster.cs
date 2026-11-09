@@ -7,7 +7,8 @@ namespace Marubatsu.Presentation
         public const string ResourcePath = "MarubatsuMatchCharacters";
         public const int CharacterCount = 3;
         static readonly string[] JapaneseFonts =
-            { "Yu Gothic UI", "Meiryo", "Yu Gothic", "メイリオ", "游ゴシック", "Noto Sans CJK JP" };
+            { "Yu Gothic UI", "Meiryo", "Yu Gothic", "メイリオ", "游ゴシック",
+                "Noto Sans CJK JP", "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN" };
         static readonly string[] JapaneseNames = { "やがぽん", "みたぬき", "矢口君" };
         static readonly string[] EnglishNames = { "Yagapon", "Mitanuki", "Yaguchi" };
 
