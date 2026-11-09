@@ -11,6 +11,8 @@ namespace Marubatsu.Editor
     {
         const string TexturePath = "Assets/Marubatsu/Art/BoardTarget.png";
         const string ScenePath = "Assets/Marubatsu/Scenes/Phase1_BoardTracking.unity";
+        const string CirclePath = "Assets/Marubatsu/Art/Yagapon/Yagapon_Animated.prefab";
+        const string CrossPath = "Assets/Marubatsu/Art/Yaguchi/Yaguchi_Animated.prefab";
 
         [MenuItem("Marubatsu/Create Phase 1 Scene")]
         public static void CreateScene()
@@ -28,8 +30,9 @@ namespace Marubatsu.Editor
             cameraObject.GetComponent<Camera>().clearFlags = CameraClearFlags.SolidColor;
             cameraObject.AddComponent<VuforiaBehaviour>();
             cameraObject.AddComponent<CameraFrameProbe>();
-            cameraObject.AddComponent<PhaseOneBootstrap>().BoardTexture =
-                AssetDatabase.LoadAssetAtPath<Texture2D>(TexturePath);
+            var bootstrap = cameraObject.AddComponent<PhaseOneBootstrap>();
+            bootstrap.BoardTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(TexturePath);
+            AssignCharacterPrefabs(bootstrap);
             var light = new GameObject("Directional Light", typeof(Light));
             light.GetComponent<Light>().type = LightType.Directional;
             light.transform.rotation = Quaternion.Euler(45, -30, 0);
@@ -56,6 +59,28 @@ namespace Marubatsu.Editor
         {
             ConfigureBoardTexture();
             PhaseOneValidation.Validate();
+        }
+
+        [MenuItem("Marubatsu/Assign Match Characters")]
+        public static void ConfigureMatchScene()
+        {
+            if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            var scene = EditorSceneManager.OpenScene(ScenePath);
+            var bootstrap = UnityEngine.Object.FindFirstObjectByType<PhaseOneBootstrap>();
+            if (bootstrap == null) throw new InvalidOperationException("Board bootstrap not found.");
+            AssignCharacterPrefabs(bootstrap);
+            EditorSceneManager.MarkSceneDirty(scene);
+            if (!EditorSceneManager.SaveScene(scene))
+                throw new IOException("Could not save match character references.");
+            PhaseOneValidation.Validate();
+        }
+
+        static void AssignCharacterPrefabs(PhaseOneBootstrap bootstrap)
+        {
+            bootstrap.CirclePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CirclePath);
+            bootstrap.CrossPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CrossPath);
+            if (bootstrap.CirclePrefab == null || bootstrap.CrossPrefab == null)
+                throw new InvalidOperationException("Animated character prefabs are missing.");
         }
     }
 }

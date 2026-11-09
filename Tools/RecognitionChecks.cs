@@ -115,7 +115,52 @@ public static class RecognitionChecks
         Check(!PerspectiveCellSampler.Sample(source,32,32,new double[]{-1,2,26,2,26,26,2,26},output,4), "out of image rejected");
         Check(!PerspectiveCellSampler.Sample(source,32,32,new double[]{2,2,26,26,26,2,2,26},output,4), "self crossing rejected");
         Check(!PerspectiveCellSampler.Sample(source,32,32,new double[]{2,2,3,3,4,4,5,5},output,4), "degenerate quad rejected");
+        CheckNineCells();
         return "PASS: " + checks + " recognition, stabilization, perspective checks. Synthetic images only.";
+    }
+
+    static void CheckNineCells()
+    {
+        const int cellSize = 96, width = cellSize * 3 + 1;
+        var frame = new byte[width * width];
+        var board = new BoardCellRecognition(cellSize);
+        var expected = new[] { CellMark.Circle, CellMark.Empty, CellMark.Cross,
+            CellMark.Cross, CellMark.Circle, CellMark.Empty,
+            CellMark.Empty, CellMark.Cross, CellMark.Circle };
+        var quads = new double[expected.Length][];
+        for (int index = 0; index < expected.Length; index++)
+        {
+            int left = index % 3 * cellSize, top = index / 3 * cellSize;
+            quads[index] = new double[] { left, top, left + 95, top,
+                left + 95, top + 95, left, top + 95 };
+            for (int row = 0; row < cellSize; row++)
+                for (int col = 0; col < cellSize; col++)
+                {
+                    int x = col - 48, y = row - 48;
+                    bool ink = expected[index] == CellMark.Circle
+                        ? Math.Abs(Math.Sqrt(x * x + y * y) - 25) < 3
+                        : expected[index] == CellMark.Cross && Math.Abs(x) < 27 && Math.Abs(y) < 27 &&
+                          (Math.Abs(x - y) < 4 || Math.Abs(x + y) < 4);
+                    frame[(top + row) * width + left + col] = ink ? (byte)15 : (byte)240;
+                }
+        }
+        for (int sample = 0; sample < 6; sample++)
+            for (int index = 0; index < expected.Length; index++)
+                if (!board.TryObserve(index, frame, width, width, quads[index], sample,
+                    sample * 0.13, out var result) || result.Mark != expected[index])
+                    throw new Exception($"FAIL: classification of cell {index} on sample {sample}");
+        Check(true, "one frame can contain independent observations for all nine cells");
+        for (int index = 0; index < expected.Length; index++)
+            Check(board.StableAt(index) == expected[index], $"stable mark at cell {index}");
+        var offscreen = new double[] {-1,0,95,0,95,95,0,95};
+        Check(!board.TryObserve(0, frame, width, width, offscreen, 6, 0.8, out _) &&
+            board.StableAt(0) == CellMark.Unknown &&
+            board.StableAt(2) == CellMark.Cross, "one invalid crop clears only its cell");
+        board.Reset();
+        for (int index = 0; index < expected.Length; index++)
+            if (board.StableAt(index) != CellMark.Unknown)
+                throw new Exception($"FAIL: stale recognition at cell {index} after reset");
+        Check(true, "tracking reset clears all nine cells");
     }
 
     static void AddLightingGradient(byte[] image, int n)

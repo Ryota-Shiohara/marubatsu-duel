@@ -13,14 +13,15 @@
 - Windows 11 / Unity Editor の Webcam Play Mode
 - OpenCV は未導入。Phase 2 で統合方法とライセンスを確定する。
 
-## Phase 1 を試す
+## AR対戦を試す
 
 1. Vuforia Engine **11.4.4** の公式配布パッケージ `com.ptc.vuforia.engine-11.4.4.tgz` を各自取得し、`Packages/` に配置する（公開リポジトリには同梱しない）。その後Unity Hubでこのフォルダーを追加し、6000.3.24f1で開く。
 2. `Assets/Marubatsu/Scenes/Phase1_BoardTracking.unity` を開く。未生成の場合は `Marubatsu > Create Phase 1 Scene` を一度実行する。
 3. `Window > Vuforia Configuration` で自分の App License Key を設定し、Play Mode を Webcam にしてカメラを選択する。設定は各PCで行う。キーをコードやGitに記録しない。
 4. `Print/Board_A4.svg` をブラウザーで開き、A4・倍率100%で印刷する。用紙に合わせる拡大縮小は無効にし、下の100 mm線を定規で確認する。認識画像の外寸は **180 × 180 mm**。
-5. Play を押し、紙の全体をカメラに映す。青い立方体9個は配置確認用であり、手書き認識結果ではない。
-6. Console の `[BoardTracker]` と `[CameraFrameProbe] CPU copy OK` を確認する。認識を失ったら立方体が隠れ、再認識で戻ることを確認する。
+5. Play を押し、空の盤面全体を映す。診断パネルで `Circle to move` になったら、○から1マスずつ交互に書く。
+6. 着手が受理されると、○はやがぽん、×は矢口君が出る。中央では手を振り、勝利時は揃った3マスにラインを表示する。
+7. 次の対局はGameビューで **R** を押し、空の盤面を映す。前の紙が映ったままの場合は受付を保留する。
 
 このシーンは **Instant Image Target** による初期検証用。Target Manager登録・星評価・実カメラによる安定性検証は未実施。正式なデータベースターゲットへの切替手順と検証条件は [Docs/PHASE1_CHECKLIST.md](Docs/PHASE1_CHECKLIST.md) を参照。
 
@@ -28,7 +29,7 @@
 
 ## 共同開発
 
-中央1マスの手書き認識プロトタイプを追加しています。無料のC#構成で、再生時に切り出し画像・二値画像・判定候補を表示します。操作と制限は [Phase 2の確認手順](Docs/PHASE2_RECOGNITION.md) を参照してください。
+認識側は9マスの安定判定から1件の着手候補を作り、ゲーム側が受理した盤面をAR表示へ渡します。対局の受け渡しとカメラなしの確認例は [ゲームロジックの受け渡し仕様](Docs/GAME_LOGIC_HANDOFF.md) を参照してください。Unityでのシーン読み込みとカメラなしのテストを確認し、実紙で着手から勝利・リセットまで1局通ったとの報告を受けています。
 
 - 担当A: Vuforia追跡・カメラフレーム・座標変換・画像認識。
 - 担当B: Vuforia非依存のゲームロジック・表示Prefab・演出。

@@ -1,5 +1,6 @@
 using UnityEngine;
 using Vuforia;
+using Marubatsu.Presentation;
 
 namespace Marubatsu
 {
@@ -7,10 +8,15 @@ namespace Marubatsu
     public sealed class PhaseOneBootstrap : MonoBehaviour
     {
         public Texture2D BoardTexture;
+        public GameObject CirclePrefab;
+        public GameObject CrossPrefab;
         ImageTargetBehaviour target;
+        TicTacToeGameManager game;
 
         void Start()
         {
+            game = GetComponent<TicTacToeGameManager>();
+            if (game == null) game = gameObject.AddComponent<TicTacToeGameManager>();
             VuforiaApplication.Instance.OnVuforiaStarted += OnStarted;
             if (VuforiaApplication.Instance.IsRunning) OnStarted();
         }
@@ -30,9 +36,13 @@ namespace Marubatsu
                 Debug.LogError("[Phase1] Image Target creation failed. Check license and texture.", this);
                 return;
             }
-            target.gameObject.AddComponent<BoardTracker>();
-            target.gameObject.AddComponent<BoardPreview>();
-            target.gameObject.AddComponent<BoardImageExtractor>();
+            var tracker = target.gameObject.AddComponent<BoardTracker>();
+            target.gameObject.AddComponent<BoardImageExtractor>().AttachGame(game.Session);
+            if (CirclePrefab != null && CrossPrefab != null)
+                target.gameObject.AddComponent<BoardMatchView>().Initialize(
+                    game.Session, tracker, target.GetSize(), CirclePrefab, CrossPrefab);
+            else
+                Debug.LogWarning("[Marubatsu] Assign both character prefabs on PhaseOneBootstrap.", this);
             Debug.Log("[Phase1] Instant target ready. Print the board at 180 mm width. " +
                 "This target has not been rated in Target Manager.", this);
         }

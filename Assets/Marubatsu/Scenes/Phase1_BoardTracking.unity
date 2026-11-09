@@ -249,6 +249,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Marubatsu.PhaseOneBootstrap
   BoardTexture: {fileID: 2800000, guid: 553b287270f6f084a8b65c8076f81bb3, type: 3}
+  CirclePrefab: {fileID: 4335016371124572410, guid: 84b26a9fac740b0469b818330b610a05, type: 3}
+  CrossPrefab: {fileID: 1525522319405864302, guid: cffc77a34e1b04b44b07dae9a209de44, type: 3}
 --- !u!114 &1935295165
 MonoBehaviour:
   m_ObjectHideFlags: 0

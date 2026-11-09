@@ -3,7 +3,7 @@ using Vuforia;
 
 namespace Marubatsu
 {
-    /// <summary>Phase 2 diagnostic: one rectified cell and provisional classification; never writes game state.</summary>
+    /// <summary>Phase 2 diagnostic: nine independent observations with one detailed image preview.</summary>
     [RequireComponent(typeof(BoardTracker), typeof(ImageTargetBehaviour))]
     public sealed class BoardImageExtractor : MonoBehaviour
     {
@@ -12,12 +12,13 @@ namespace Marubatsu
         [Range(0.03f, 0.25f)] public float CellInset = 0.06f;
         public int MinimumCellPixels = 16;
         const int Size = 96;
-        readonly byte[] crop = new byte[Size*Size];
         readonly double[] corners = new double[8];
         readonly Vector3[] worldCorners = new Vector3[4];
         readonly Color32[] pixels = new Color32[Size*Size];
-        readonly CellImageProcessing recognizer = new CellImageProcessing(Size);
-        readonly CellDetectionStabilizer stabilizer = new CellDetectionStabilizer();
+        readonly BoardCellRecognition recognition = new BoardCellRecognition(Size);
+        readonly CellMark[] stableCells = new CellMark[BoardCellRecognition.Count];
+        GameSession session;
+        PaperMoveInput paperInput;
         CameraFrameProvider provider;
         BoardTracker tracker;
         ImageTargetBehaviour target;
@@ -26,10 +27,27 @@ namespace Marubatsu
         CellClassification classification;
         CellMark lastLogged = CellMark.Unknown;
         string status = "Waiting for camera";
-        bool valid;
+        string diagnostic;
+        string gameStatus;
+        bool hasFrame;
+        bool selectedValid;
         double lastFrame;
         int sampledCell = -1;
         float sampledInset = -1;
+
+        public void AttachGame(GameSession game)
+        {
+            if (session != null) session.OnSnapshotChanged -= OnGameChanged;
+            session = game;
+            paperInput = new PaperMoveInput(game);
+            session.OnSnapshotChanged += OnGameChanged;
+            Invalidate("Waiting for game board");
+        }
+
+        void OnGameChanged(BoardSnapshot snapshot)
+        {
+            if (!snapshot.LastMove.HasValue) Invalidate("Show empty paper");
+        }
 
         void Start()
         {
@@ -48,57 +66,100 @@ namespace Marubatsu
         void OnTracking(bool tracked) => Invalidate(tracked ? "Waiting for next frame" : "Show the whole board to the camera");
         void Invalidate(string reason)
         {
-            valid = false; status = reason; stabilizer.Reset(); lastLogged = CellMark.Unknown;
+            hasFrame = selectedValid = false;
+            status = reason;
+            gameStatus = reason;
+            lastLogged = CellMark.Unknown;
+            recognition.Reset();
         }
+
         void OnFrame(GrayCameraFrame frame)
         {
-            if (CellIndex != sampledCell || CellInset != sampledInset)
-            {
-                Invalidate("Cell selection changed");
-                sampledCell = CellIndex; sampledInset = CellInset;
-            }
             if (!tracker.IsTracked) { Invalidate("Board not tracked"); return; }
             if (!frame.LinearCamera) { Invalidate("Nonlinear camera: calibration required"); return; }
             if (frame.FocalLength.x <= 0 || frame.FocalLength.y <= 0) { Invalidate("Invalid camera calibration"); return; }
+            if (CellInset != sampledInset)
+            {
+                Invalidate("Crop margin changed");
+                sampledInset = CellInset;
+            }
+
+            if (CellIndex != sampledCell)
+            {
+                sampledCell = CellIndex;
+                lastLogged = CellMark.Unknown;
+            }
+            selectedValid = false;
             var size = target.GetSize();
-            var center = BoardGeometry.CellCenter(CellIndex, size);
-            float halfX = size.x*BoardGeometry.PlayAreaFraction/3f*(0.5f-CellInset);
-            float halfZ = size.y*BoardGeometry.PlayAreaFraction/3f*(0.5f-CellInset);
-            worldCorners[0] = transform.TransformPoint(center + new Vector3(-halfX, 0, halfZ));
-            worldCorners[1] = transform.TransformPoint(center + new Vector3(halfX, 0, halfZ));
-            worldCorners[2] = transform.TransformPoint(center + new Vector3(halfX, 0, -halfZ));
-            worldCorners[3] = transform.TransformPoint(center + new Vector3(-halfX, 0, -halfZ));
-            for (int i = 0; i < 4; i++)
+            float halfX = size.x * BoardGeometry.PlayAreaFraction / 3f * (0.5f - CellInset);
+            float halfZ = size.y * BoardGeometry.PlayAreaFraction / 3f * (0.5f - CellInset);
+            var cellToWorld = transform.localToWorldMatrix;
+
+            for (int index = 0; index < BoardCellRecognition.Count; index++)
             {
-                // Unity local camera axes are +X right, +Y up, +Z forward.
-                // Raw image coordinates are +X right, +Y down, origin top-left.
-                var p = frame.WorldToCamera.MultiplyPoint3x4(worldCorners[i]);
-                if (p.z <= arCamera.nearClipPlane) { Invalidate("Cell behind camera"); return; }
-                corners[2*i] = frame.FocalLength.x*p.x/p.z + frame.PrincipalPoint.x;
-                corners[2*i+1] = frame.PrincipalPoint.y-frame.FocalLength.y*p.y/p.z;
+                bool selected = index == sampledCell;
+                var center = BoardGeometry.CellCenter(index, size);
+                string failure = ProjectCell(frame, cellToWorld, center, halfX, halfZ, selected);
+                if (failure != null)
+                {
+                    recognition.InvalidateCell(index);
+                    if (selected) status = failure;
+                    continue;
+                }
+                if (!recognition.TryObserve(index, frame.Pixels, frame.Width, frame.Height,
+                    corners, frame.Sequence, frame.Time, out var observation))
+                {
+                    if (selected) status = "Cell outside image or invalid perspective";
+                    continue;
+                }
+                if (!selected) continue;
+
+                classification = observation;
+                diagnostic = recognition.DiagnosticReason;
+                status = $"Cell {index} / ink {recognition.InkRatio:P0}";
+                Upload(grayTexture, recognition.Crop);
+                Upload(binaryTexture, recognition.Binary);
+                selectedValid = true;
+                CellMark stable = recognition.StableAt(index);
+                if (stable != lastLogged && stable != CellMark.Unknown)
+                    Debug.Log($"[CellRecognition] cell={index}, stable={stable}. Diagnostic observation.", this);
+                lastLogged = stable;
             }
-            double minSide = double.MaxValue;
-            for (int i = 0; i < 4; i++)
+            hasFrame = true;
+            lastFrame = frame.Time;
+            if (paperInput != null)
             {
-                int next = (i+1)%4;
-                double dx = corners[2*i]-corners[2*next], dy = corners[2*i+1]-corners[2*next+1];
-                minSide = System.Math.Min(minSide, System.Math.Sqrt(dx*dx+dy*dy));
-            }
-            if (minSide < MinimumCellPixels) { Invalidate("Move camera closer to the board"); return; }
-            if (!PerspectiveCellSampler.Sample(frame.Pixels, frame.Width, frame.Height, corners, crop, Size))
-            { Invalidate("Cell outside image or invalid perspective"); return; }
-            classification = recognizer.Classify(crop);
-            stabilizer.Observe(classification, frame.Sequence, frame.Time);
-            Upload(grayTexture, crop); Upload(binaryTexture, recognizer.Binary);
-            valid = true; lastFrame = frame.Time;
-            status = $"Cell {CellIndex} / ink {recognizer.InkRatio:P0}";
-            if (stabilizer.Stable != CellMark.Unknown && stabilizer.Stable != lastLogged)
-            {
-                lastLogged = stabilizer.Stable;
-                Debug.Log($"[CellRecognition] cell={CellIndex}, stable={lastLogged}, " +
-                    $"ink={recognizer.InkRatio:P1}. Diagnostic only; no game move accepted.", this);
+                for (int index = 0; index < stableCells.Length; index++)
+                    stableCells[index] = recognition.StableAt(index);
+                gameStatus = paperInput.Observe(stableCells);
             }
         }
+
+        string ProjectCell(GrayCameraFrame frame, Matrix4x4 cellToWorld, Vector3 center,
+            float halfX, float halfZ, bool selected)
+        {
+            for (int corner = 0; corner < 4; corner++)
+            {
+                float x = corner == 0 || corner == 3 ? -halfX : halfX;
+                float z = corner < 2 ? halfZ : -halfZ;
+                Vector3 world = cellToWorld.MultiplyPoint3x4(center + new Vector3(x, 0, z));
+                var point = frame.WorldToCamera.MultiplyPoint3x4(world);
+                if (point.z <= arCamera.nearClipPlane) return "Cell behind camera";
+                if (selected) worldCorners[corner] = world;
+                corners[2 * corner] = frame.FocalLength.x * point.x / point.z + frame.PrincipalPoint.x;
+                corners[2 * corner + 1] = frame.PrincipalPoint.y - frame.FocalLength.y * point.y / point.z;
+            }
+            double minSquared = (double)MinimumCellPixels * MinimumCellPixels;
+            for (int corner = 0; corner < 4; corner++)
+            {
+                int next = (corner + 1) % 4;
+                double dx = corners[2 * corner] - corners[2 * next];
+                double dy = corners[2 * corner + 1] - corners[2 * next + 1];
+                if (dx * dx + dy * dy < minSquared) return "Move camera closer to the board";
+            }
+            return null;
+        }
+
         void Upload(Texture2D texture, byte[] values)
         {
             // Texture2D rows start at the bottom; grayscale buffers start at the top.
@@ -112,22 +173,44 @@ namespace Marubatsu
         }
         void OnGUI()
         {
-            bool fresh = valid && Time.realtimeSinceStartupAsDouble-lastFrame < 0.5;
-            if (!fresh && valid) Invalidate("Camera frame stalled");
-            GUI.Box(new Rect(10, 10, 282, 232), "Phase 2 / one-cell recognition");
+            bool fresh = hasFrame && Time.realtimeSinceStartupAsDouble-lastFrame < 0.5;
+            if (!fresh && hasFrame) Invalidate("Camera frame stalled");
+            DrawBoardStatus();
+            GUI.Box(new Rect(10, 10, 282, 232), "Phase 2 / cell detail");
             GUI.Label(new Rect(20, 34, 260, 22), status);
-            if (fresh)
+            if (fresh && selectedValid && CellIndex == sampledCell)
             {
                 GUI.Label(new Rect(20, 56, 130, 20), "Rectified cell");
                 GUI.Label(new Rect(160, 56, 120, 20), "Binary image");
                 GUI.DrawTexture(new Rect(20, 78, 96, 96), grayTexture);
                 GUI.DrawTexture(new Rect(160, 78, 96, 96), binaryTexture);
-                GUI.Label(new Rect(20, 178, 260, 24), $"{classification.Mark} / stable: {stabilizer.Stable}");
-                GUI.Label(new Rect(20, 202, 260, 24), recognizer.DiagnosticReason);
+                GUI.Label(new Rect(20, 178, 260, 24), $"{classification.Mark} / stable: {recognition.StableAt(sampledCell)}");
+                GUI.Label(new Rect(20, 202, 260, 24), diagnostic);
                 for (int i = 0; i < 4; i++) DrawEdge(worldCorners[i], worldCorners[(i+1)%4]);
             }
             else GUI.Label(new Rect(20, 78, 260, 90), "Tracking / calibration pending.\nClassification is paused.");
         }
+        void DrawBoardStatus()
+        {
+            float left = Screen.width >= 450 ? 300 : 10;
+            float top = Screen.width >= 450 ? 10 : 250;
+            GUI.Box(new Rect(left, top, 146, 132), "Stable cells");
+            for (int row = 0; row < 3; row++)
+            {
+                for (int column = 0; column < 3; column++)
+                {
+                    int index = row * 3 + column;
+                    var mark = recognition.StableAt(index);
+                    string symbol = mark == CellMark.Circle ? "O" :
+                        mark == CellMark.Cross ? "X" : mark == CellMark.Empty ? "-" : "?";
+                    GUI.Label(new Rect(left + 12 + column * 42, top + 26 + row * 24, 42, 24),
+                        $"{index}: {symbol}");
+                }
+            }
+            if (paperInput != null)
+                GUI.Label(new Rect(left + 8, top + 102, 134, 26), gameStatus);
+        }
+
         void DrawEdge(Vector3 a, Vector3 b)
         {
             var start = arCamera.WorldToScreenPoint(a); var end = arCamera.WorldToScreenPoint(b);
@@ -142,6 +225,7 @@ namespace Marubatsu
         {
             if (provider != null) provider.FrameReady -= OnFrame;
             if (tracker != null) tracker.TrackingChanged -= OnTracking;
+            if (session != null) session.OnSnapshotChanged -= OnGameChanged;
             if (grayTexture != null) Destroy(grayTexture);
             if (binaryTexture != null) Destroy(binaryTexture);
         }
