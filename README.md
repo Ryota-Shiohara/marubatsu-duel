@@ -19,9 +19,11 @@
 2. `Assets/Marubatsu/Scenes/Phase1_BoardTracking.unity` を開く。未生成の場合は `Marubatsu > Create Phase 1 Scene` を一度実行する。
 3. `Window > Vuforia Configuration` で自分の App License Key を設定し、Play Mode を Webcam にしてカメラを選択する。設定は各PCで行う。キーをコードやGitに記録しない。
 4. `Print/Board_A4.svg` をブラウザーで開き、A4・倍率100%で印刷する。用紙に合わせる拡大縮小は無効にし、下の100 mm線を定規で確認する。認識画像の外寸は **180 × 180 mm**。
-5. Play を押し、空の盤面全体を映す。診断パネルで `Circle to move` になったら、○から1マスずつ交互に書く。
+5. Play を押し、空の盤面全体を映す。画面に「○ やがぽんの番」と表示され、空きマスに書く案内が出たら、○から1マスずつ交互に書く。
 6. 着手が受理されると、○はやがぽん、×は矢口君が出る。中央では手を振り、勝利時は揃った3マスにラインを表示する。
-7. 次の対局はGameビューで **R** を押し、空の盤面を映す。前の紙が映ったままの場合は受付を保留する。
+7. 次の対局は終了時の「次の対戦」を押し、空の盤面を映す。途中でやり直す場合はGameビューで **R** を押す。
+
+開発中はGameビューで **F1** を押すと認識の診断パネルに切り替わる。もう一度押すと対戦表示に戻る。
 
 このシーンは **Instant Image Target** による初期検証用。Target Manager登録・星評価・実カメラによる安定性検証は未実施。正式なデータベースターゲットへの切替手順と検証条件は [Docs/PHASE1_CHECKLIST.md](Docs/PHASE1_CHECKLIST.md) を参照。
 

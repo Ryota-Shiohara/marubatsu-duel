@@ -28,12 +28,15 @@ namespace Marubatsu
         CellMark lastLogged = CellMark.Unknown;
         string status = "Waiting for camera";
         string diagnostic;
-        string gameStatus;
         bool hasFrame;
         bool selectedValid;
         double lastFrame;
         int sampledCell = -1;
         float sampledInset = -1;
+
+        public PaperMoveStatus PaperStatus { get; private set; }
+        public bool DiagnosticsVisible { get; private set; }
+        public bool HasFreshFrame => hasFrame && Time.realtimeSinceStartupAsDouble - lastFrame < 0.5;
 
         public void AttachGame(GameSession game)
         {
@@ -68,7 +71,7 @@ namespace Marubatsu
         {
             hasFrame = selectedValid = false;
             status = reason;
-            gameStatus = reason;
+            PaperStatus = PaperMoveStatus.WaitingForStableCells;
             lastLogged = CellMark.Unknown;
             recognition.Reset();
         }
@@ -117,8 +120,11 @@ namespace Marubatsu
                 classification = observation;
                 diagnostic = recognition.DiagnosticReason;
                 status = $"Cell {index} / ink {recognition.InkRatio:P0}";
-                Upload(grayTexture, recognition.Crop);
-                Upload(binaryTexture, recognition.Binary);
+                if (DiagnosticsVisible)
+                {
+                    Upload(grayTexture, recognition.Crop);
+                    Upload(binaryTexture, recognition.Binary);
+                }
                 selectedValid = true;
                 CellMark stable = recognition.StableAt(index);
                 if (stable != lastLogged && stable != CellMark.Unknown)
@@ -131,7 +137,7 @@ namespace Marubatsu
             {
                 for (int index = 0; index < stableCells.Length; index++)
                     stableCells[index] = recognition.StableAt(index);
-                gameStatus = paperInput.Observe(stableCells);
+                PaperStatus = paperInput.Observe(stableCells);
             }
         }
 
@@ -171,14 +177,25 @@ namespace Marubatsu
                 }
             texture.SetPixels32(pixels); texture.Apply(false);
         }
+        void Update()
+        {
+            if (hasFrame && !HasFreshFrame) Invalidate("Camera frame stalled");
+#if ENABLE_LEGACY_INPUT_MANAGER
+            if (Input.GetKeyDown(KeyCode.F1))
+            {
+                DiagnosticsVisible = !DiagnosticsVisible;
+                selectedValid = false;
+            }
+#endif
+        }
+
         void OnGUI()
         {
-            bool fresh = hasFrame && Time.realtimeSinceStartupAsDouble-lastFrame < 0.5;
-            if (!fresh && hasFrame) Invalidate("Camera frame stalled");
+            if (!DiagnosticsVisible) return;
             DrawBoardStatus();
             GUI.Box(new Rect(10, 10, 282, 232), "Phase 2 / cell detail");
             GUI.Label(new Rect(20, 34, 260, 22), status);
-            if (fresh && selectedValid && CellIndex == sampledCell)
+            if (HasFreshFrame && selectedValid && CellIndex == sampledCell)
             {
                 GUI.Label(new Rect(20, 56, 130, 20), "Rectified cell");
                 GUI.Label(new Rect(160, 56, 120, 20), "Binary image");
@@ -207,8 +224,8 @@ namespace Marubatsu
                         $"{index}: {symbol}");
                 }
             }
-            if (paperInput != null)
-                GUI.Label(new Rect(left + 8, top + 102, 134, 26), gameStatus);
+            if (paperInput != null && HasFreshFrame)
+                GUI.Label(new Rect(left + 8, top + 102, 134, 26), PaperStatus.ToString());
         }
 
         void DrawEdge(Vector3 a, Vector3 b)

@@ -3,6 +3,19 @@ using System.Collections.Generic;
 
 namespace Marubatsu
 {
+    public enum PaperMoveStatus
+    {
+        WaitingForEmptyPaper,
+        WaitingForStableCells,
+        BoardMismatch,
+        MultipleMarks,
+        WrongTurn,
+        Ready,
+        Accepted,
+        Rejected,
+        Finished
+    }
+
     /// <summary>Converts stable paper observations into at most one game move.</summary>
     public sealed class PaperMoveInput
     {
@@ -15,13 +28,13 @@ namespace Marubatsu
             this.session = session ?? throw new ArgumentNullException(nameof(session));
         }
 
-        public string Observe(IReadOnlyList<CellMark> stableCells)
+        public PaperMoveStatus Observe(IReadOnlyList<CellMark> stableCells)
         {
             if (stableCells == null || stableCells.Count != GameSession.CellCount)
                 throw new ArgumentException("Expected nine stable cell observations.", nameof(stableCells));
 
             BoardSnapshot snapshot = session.GetSnapshot();
-            if (snapshot.Outcome != OutcomeType.Playing) return snapshot.Outcome.ToString();
+            if (snapshot.Outcome != OutcomeType.Playing) return PaperMoveStatus.Finished;
             if (!snapshot.LastMove.HasValue && snapshot.Revision != resetRevision)
             {
                 resetRevision = snapshot.Revision;
@@ -31,7 +44,7 @@ namespace Marubatsu
             if (!emptyPaperConfirmed && !snapshot.LastMove.HasValue)
             {
                 for (int index = 0; index < stableCells.Count; index++)
-                    if (stableCells[index] != CellMark.Empty) return "Show empty paper";
+                    if (stableCells[index] != CellMark.Empty) return PaperMoveStatus.WaitingForEmptyPaper;
                 emptyPaperConfirmed = true;
             }
 
@@ -39,24 +52,24 @@ namespace Marubatsu
             for (int index = 0; index < stableCells.Count; index++)
             {
                 CellMark observed = stableCells[index];
-                if (observed == CellMark.Unknown) return "Waiting for stable cells";
+                if (observed == CellMark.Unknown) return PaperMoveStatus.WaitingForStableCells;
                 MarkType mark = observed == CellMark.Circle ? MarkType.Circle :
                     observed == CellMark.Cross ? MarkType.Cross : MarkType.Empty;
                 MarkType accepted = snapshot.Cells[index];
                 if (accepted != MarkType.Empty)
                 {
-                    if (mark != accepted) return "Paper differs from game";
+                    if (mark != accepted) return PaperMoveStatus.BoardMismatch;
                     continue;
                 }
 
                 if (mark == MarkType.Empty) continue;
-                if (candidate.HasValue) return "Multiple new marks";
+                if (candidate.HasValue) return PaperMoveStatus.MultipleMarks;
                 candidate = new MoveCandidate(index, mark);
             }
 
-            if (!candidate.HasValue) return $"{snapshot.NextTurn} to move";
-            if (candidate.Value.Mark != snapshot.NextTurn) return $"{snapshot.NextTurn} to move";
-            return session.TryApplyMove(candidate.Value) ? "Move accepted" : "Move rejected";
+            if (!candidate.HasValue) return PaperMoveStatus.Ready;
+            if (candidate.Value.Mark != snapshot.NextTurn) return PaperMoveStatus.WrongTurn;
+            return session.TryApplyMove(candidate.Value) ? PaperMoveStatus.Accepted : PaperMoveStatus.Rejected;
         }
     }
 }

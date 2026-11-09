@@ -70,15 +70,19 @@ public static class GameLogicChecks
         var input = new PaperMoveInput(game);
         var cells = Enumerable.Repeat(CellMark.Empty, 9).ToArray();
         cells[4] = CellMark.Circle;
-        input.Observe(cells);
-        Require(game.GetSnapshot().Revision == 0, "old marks cannot start a match");
+        Require(input.Observe(cells) == PaperMoveStatus.WaitingForEmptyPaper &&
+            game.GetSnapshot().Revision == 0, "old marks cannot start a match");
         cells[4] = CellMark.Empty;
-        input.Observe(cells);
+        Require(input.Observe(cells) == PaperMoveStatus.Ready, "empty board becomes ready");
+
+        cells[4] = CellMark.Cross;
+        Require(input.Observe(cells) == PaperMoveStatus.WrongTurn &&
+            game.GetSnapshot().Revision == 0, "wrong-turn hint does not accept a move");
 
         cells[4] = CellMark.Circle;
         cells[0] = CellMark.Cross;
-        input.Observe(cells);
-        Require(game.GetSnapshot().Revision == 0, "two simultaneous marks are held");
+        Require(input.Observe(cells) == PaperMoveStatus.MultipleMarks &&
+            game.GetSnapshot().Revision == 0, "two simultaneous marks are held");
         cells[0] = CellMark.Unknown;
         input.Observe(cells);
         Require(game.GetSnapshot().Revision == 0, "an unsettled cell is not assumed empty");

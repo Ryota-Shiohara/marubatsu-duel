@@ -12,11 +12,14 @@ namespace Marubatsu
         public GameObject CrossPrefab;
         ImageTargetBehaviour target;
         TicTacToeGameManager game;
+        MatchHud hud;
 
         void Start()
         {
             game = GetComponent<TicTacToeGameManager>();
             if (game == null) game = gameObject.AddComponent<TicTacToeGameManager>();
+            hud = gameObject.AddComponent<MatchHud>();
+            hud.Initialize(game.Session);
             VuforiaApplication.Instance.OnVuforiaStarted += OnStarted;
             if (VuforiaApplication.Instance.IsRunning) OnStarted();
         }
@@ -37,7 +40,9 @@ namespace Marubatsu
                 return;
             }
             var tracker = target.gameObject.AddComponent<BoardTracker>();
-            target.gameObject.AddComponent<BoardImageExtractor>().AttachGame(game.Session);
+            var extractor = target.gameObject.AddComponent<BoardImageExtractor>();
+            extractor.AttachGame(game.Session);
+            hud.AttachBoard(tracker, extractor);
             if (CirclePrefab != null && CrossPrefab != null)
                 target.gameObject.AddComponent<BoardMatchView>().Initialize(
                     game.Session, tracker, target.GetSize(), CirclePrefab, CrossPrefab);
