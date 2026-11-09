@@ -1,43 +1,76 @@
 # 飛び出せ！DXまるばつげーむ！
 
-![やがぽんと矢口君が紙の盤面から飛び出す、光る三目並べの完成イメージ](Docs/images/marubatsu-duel-concept.png)
+人間2人が紙の3×3盤面に○と×を書いて対戦する、Unity・Vuforia製のARゲームです。カメラが記号を読み取ると、選んだキャラクターが紙の上に登場します。
 
-※完成イメージです。現在の実装画面ではありません。
+## 現在の盤面
 
-紙への手書き○×を入力にするAR三目並べ。開発方針は [PROJECT_SPEC.md](PROJECT_SPEC.md)、技術調査と実装計画は [Docs/TECHNICAL_PLAN.md](Docs/TECHNICAL_PLAN.md) を参照。
+![現行のA4横向き印刷盤面](Assets/Marubatsu/Art/BoardTarget.png)
+
+盤面はA4横向きで印刷します。画像ターゲットの外寸は **270 × 180 mm**。印刷倍率は100%に設定し、SVG下部の100 mm基準線を定規で確認してください。
+
+![開発初期の完成イメージ](Docs/images/marubatsu-duel-concept.png)
+
+上の完成イメージは開発初期の参考画像で、現在の画面やキャラクターモデルそのものではありません。
+
+## 実装済みの機能
+
+- 対局前に○側・×側のキャラクターを選択。**やがぽん、みたぬき、矢口君**から選べ、同じキャラクターは両側に選べません。
+- ○を先手として、2人が紙に交互に記入。盤面認識、9マスの手書き記号の安定判定、手番・勝敗判定を連携しています。
+- 縦・横・斜めに同じ記号が3つ並ぶと勝利、9マスが埋まると引き分けです。対局中の手番と終了結果は画面下部に表示します。
+- 次の手番のキャラクターを盤面左右の台座に表示し、回転させます。
+- 受理したマスにはキャラクターが現れます。従来より**2.5倍に拡大**し、色付きのマーカーで○・×を区別。キャラクターごとに浮遊・歩行などの動きを付けています。
+- 中央マスでは手を振り、勝利時にはキャラクターのリアクション、勝利ライン、光の粒子を表示します。
+- 筆跡認識は追加購入が必要なOpenCV製品を使わず、Vuforiaから受け取るカメラ画像とC#の画像処理で行います。
 
 ## 開発環境
 
 - Unity **6000.3.24f1** / Built-in Render Pipeline
-- Vuforia Engine **11.4.4**（既存の隣接チュートリアルにあった配布パッケージを同じバージョンで利用）
+- Vuforia Engine **11.4.4**
 - Windows 11 / Unity Editor の Webcam Play Mode
-- OpenCV は未導入。Phase 2 で統合方法とライセンスを確定する。
+- OpenCV for Unityなどの有償画像処理アセットは未導入
 
-## AR対戦を試す
+Unity・Vuforiaのバージョンはプロジェクトに合わせてください。Vuforia Engineの配布パッケージはこの公開リポジトリには含めていません。各自で公式配布パッケージ `com.ptc.vuforia.engine-11.4.4.tgz` を取得して `Packages/` に置き、必要に応じてPackage Managerから読み込んでください。Vuforiaのライセンスキーも各PCで設定し、コードやGitには保存しないでください。
 
-1. Vuforia Engine **11.4.4** の公式配布パッケージ `com.ptc.vuforia.engine-11.4.4.tgz` を各自取得し、`Packages/` に配置する（公開リポジトリには同梱しない）。その後Unity Hubでこのフォルダーを追加し、6000.3.24f1で開く。
-2. `Assets/Marubatsu/Scenes/Phase1_BoardTracking.unity` を開く。未生成の場合は `Marubatsu > Create Phase 1 Scene` を一度実行する。
-3. `Window > Vuforia Configuration` で自分の App License Key を設定し、Play Mode を Webcam にしてカメラを選択する。設定は各PCで行う。キーをコードやGitに記録しない。
-4. `Print/Board_A4.svg` をブラウザーで開き、A4横・倍率100%で印刷する。用紙に合わせる拡大縮小は無効にし、下の100 mm線を定規で確認する。認識画像の外寸は **270 × 180 mm**。
-5. Play を押し、空の盤面全体を映す。画面に「○ やがぽんの番」と表示され、空きマスに書く案内が出たら、○から1マスずつ交互に書く。
-6. 着手が受理されると、○はやがぽん、×は矢口君が出る。中央では手を振り、勝利時は揃った3マスにラインを表示する。
-7. 次の対局は終了時の「次の対戦」を押し、空の盤面を映す。途中でやり直す場合はGameビューで **R** を押す。
+## Unity Editorで対局する
 
-開発中はGameビューで **F1** を押すと認識の診断パネルに切り替わる。もう一度押すと対戦表示に戻る。
+1. Unity Hubでこのフォルダーを追加し、Unity 6000.3.24f1で開きます。
+2. Vuforia Engine 11.4.4を利用できる状態にし、`Assets/Marubatsu/Scenes/Phase1_BoardTracking.unity` を開きます。シーンが見つからない場合は `Marubatsu > Create Phase 1 Scene` を実行します。
+3. `Window > Vuforia Configuration` で自分のライセンスキーを設定し、Play ModeをWebcamにして使用するカメラを選択します。
+4. `Print/Board_A4.svg` をA4横・100%で印刷します。用紙全体と外周模様がカメラに映るように置きます。
+5. Playを押し、画面のキャラクターセレクトで○側・×側のキャラクターを選んで対局を開始します。
+6. 「空の盤面を映してください」と表示されたら、空の紙を映します。準備ができたら○から空きマスに1つずつ記入し、手を離して認識が安定するまで盤面を静止させます。その後、×、○の順で交互に続けます。
+7. 対局終了後は「次の対戦」を選び、空の紙で次のゲームを始めます。
 
-このシーンは **Instant Image Target** による初期検証用。Target Manager登録・星評価・実カメラによる安定性検証は未実施。正式なデータベースターゲットへの切替手順と検証条件は [Docs/PHASE1_CHECKLIST.md](Docs/PHASE1_CHECKLIST.md) を参照。
+開発用キー:
 
-通常のWindows Standalone（Win32 `.exe`）はVuforiaのサポート対象ではない。まずEditor内で検証し、配布が必要になった時点で対応プラットフォームを再検討する。
+- **F1**: 認識診断表示の切り替え。選択中マス（初期値は中央）の切り出しと二値画像を確認できます。
+- **R**: 現在の対局をリセットします。紙の記号も消すか、新しい空の紙を用意してください。
 
-## 共同開発
+### ターゲット方式
 
-認識側は9マスの安定判定から1件の着手候補を作り、ゲーム側が受理した盤面をAR表示へ渡します。対局の受け渡しとカメラなしの確認例は [ゲームロジックの受け渡し仕様](Docs/GAME_LOGIC_HANDOFF.md) を参照してください。Unityでのシーン読み込みとカメラなしのテストを確認し、実紙で着手から勝利・リセットまで1局通ったとの報告を受けています。
+Unityシーンは `BoardTarget.png` から実行時に作る **Instant Image Target** を使用します。Vuforia Target Managerには同じ盤面画像を登録し、星4の評価を得たとの報告がありますが、そのデータベースはこのシーンに取り込んでいません。ターゲット方式を切り替える場合は別途Unity側の設定が必要です。
 
-- 担当A: Vuforia追跡・カメラフレーム・座標変換・画像認識。
-- 担当B: Vuforia非依存のゲームロジック・表示Prefab・演出。
-- シーンの編集担当を一人に決め、もう一人は別Prefab・コードを編集する。
-- `Assets` のアセットと対応する `.meta`、`Packages`、`ProjectSettings` を管理する。`Library`、`Temp`、ローカルライセンス設定を除外する。
-- Vuforia SDKの配布パッケージは公開対象から除外する。共同開発者は[公式ダウンロードページ](https://developer.vuforia.com/downloads/sdk)から同じ11.4.4を取得し、`Packages/` に配置する。ローカルの既存ファイルはそのまま利用できる。
-- コミット形式は `feat: 盤面追跡の初期検証を追加` など、prefixとわかりやすい日本語。push・デプロイ・worktree作成は行わない。
+## 認識と検証について
 
-盤面の再生成: PillowのあるPythonで `python Tools/generate_board.py`。生成元と盤面画像・印刷SVGを同時に更新する。
+基本的な実機確認は以前の構成で行われ、中央マスの切り出しは盤面と合うこと、真上からの手書き判定はおおむね動くことが確認されています。筆跡・角度・照明によって `Unknown` になる場合があり、認識精度を保証するものではありません。**直近で拡大したキャラクターの盤面表示は、最新コードで実機再確認が必要です。**
+
+`Tools/Test-Recognition.ps1` は合成画像による筆跡分類、安定化、ゲーム入力のチェックに使えます。これは実カメラや印刷した紙での試験の代わりにはなりません。認識方式・既知の制限・検証手順は以下を参照してください。
+
+- [プロジェクト仕様](PROJECT_SPEC.md)
+- [技術調査・実装計画](Docs/TECHNICAL_PLAN.md)
+- [認識の試し方と制限](Docs/PHASE2_RECOGNITION.md)
+- [実機確認チェックリスト](Docs/PHASE1_CHECKLIST.md)
+- [ゲームロジックの受け渡し仕様](Docs/GAME_LOGIC_HANDOFF.md)
+- [キャラクターとアニメーション](Docs/CHARACTER_ANIMATION.md)
+
+## 主なフォルダー
+
+- `Assets/Marubatsu/Runtime/`: Vuforia追跡、カメラフレーム、盤面切り出し、筆跡認識、紙面からの着手入力
+- `Assets/Marubatsu/GameLogic/`: 手番、盤面、勝敗の管理
+- `Assets/Marubatsu/Presentation/`: キャラクター選択UI、盤面上のキャラクター、対戦演出
+- `Assets/Marubatsu/Art/`: 盤面画像、キャラクターモデル、選択用画像、アニメーション
+- `Assets/Marubatsu/Resources/MarubatsuMatchCharacters.asset`: 選択可能なキャラクターと肖像画像の一覧
+- `Print/Board_A4.svg`: 印刷用盤面
+- `Tools/`: 盤面生成・認識テスト用スクリプト
+
+盤面画像と印刷用SVGの両方を更新するときは、Pillowを利用できる環境で `python Tools/generate_board.py` を実行します。
