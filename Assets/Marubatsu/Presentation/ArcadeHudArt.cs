@@ -6,6 +6,7 @@ namespace Marubatsu.Presentation
     /// <summary>Shared screen-space art for the arcade screens and the AR overlay.</summary>
     sealed class ArcadeHudArt : IDisposable
     {
+        internal const string DisplayFontPath = "MarubatsuArcade/DelaGothicOne-Regular";
         public static readonly Color Ice = new Color32(0, 196, 255, 255);
         public static readonly Color Flame = new Color32(255, 112, 25, 255);
         public static readonly Color Gold = new Color32(255, 191, 29, 255);
@@ -33,7 +34,7 @@ namespace Marubatsu.Presentation
                 MakeFrame(Ice), MakeFrame(Flame), MakeFrame(Gold, metal: true), MakeFrame(Steel)
             };
             halo = MakeHalo();
-            var displayFont = Resources.Load<Font>("MarubatsuArcade/DelaGothicOne-Regular");
+            var displayFont = Resources.Load<Font>(DisplayFontPath);
             systemFont = MatchCharacterRoster.CreateJapaneseFont(26);
             SupportsJapanese = systemFont != null || displayFont != null;
             text = new GUIStyle(GUI.skin.label)

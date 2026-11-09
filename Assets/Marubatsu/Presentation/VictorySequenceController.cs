@@ -141,7 +141,7 @@ namespace Marubatsu.Presentation
                     effects.Celebrate(settings.celebrationParticles / 5, 0f);
                     celebrated = true;
                 }
-                label.Show("DRAW", Vector3.up * unit * .95f, tint,
+                label.Show("DRAW", Vector3.up * unit * .95f,
                     Mathf.SmoothStep(0, 1, progress * 4), .84f);
                 return;
             }
@@ -164,14 +164,13 @@ namespace Marubatsu.Presentation
                     effects.Celebrate(settings.celebrationParticles, settings.liftInCells);
                     celebrated = true;
                 }
-                float rise = EaseOut(Mathf.Clamp01(reveal * 6));
-                label.Show("WINNER!", centers[1] + Vector3.up * (unit * (settings.liftInCells + 3.37f)), tint,
-                    rise, Mathf.Lerp(.66f, 1f, rise));
+                label.ShowWinner(centers[1] + Vector3.up * (unit * (settings.liftInCells + 2.99f)),
+                    tint, Mathf.Clamp01(reveal * 4f));
             }
             else
             {
                 float flash = Mathf.Clamp01(1 - Mathf.Abs(charge - .46f) * 2.3f);
-                label.Show("FINISH!", centers[1] + Vector3.up * (unit * 1.46f), tint, flash, .75f + charge * .25f);
+                label.Show("FINISH!", centers[1] + Vector3.up * (unit * 1.46f), flash, .75f + charge * .25f);
             }
         }
 
