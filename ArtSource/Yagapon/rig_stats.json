@@ -1,0 +1,15 @@
+{
+  "source_triangles": 20804,
+  "triangles": 4510,
+  "mesh_objects": 1,
+  "materials": 6,
+  "nine_instances_triangles": 40590,
+  "rigged": true,
+  "bones": 8,
+  "blend_shapes": [
+    "Blink_L",
+    "Blink_R",
+    "Blink"
+  ],
+  "max_weights": 3
+}
