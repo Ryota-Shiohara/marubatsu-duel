@@ -19,6 +19,7 @@ namespace Marubatsu.Presentation
         Camera arCamera;
         Vector2 boardSize;
         ArcadeHudArt art;
+        ArcadeAudio matchAudio;
         Texture2D[] portraits;
         Action<int, int> beginMatch;
         Action endMatch;
@@ -35,11 +36,12 @@ namespace Marubatsu.Presentation
         bool BoardReady => BoardTracked && extractor.HasFreshFrame && extractor.IsEmptyBoardStable;
         float IntroAge => Time.unscaledTime - introStart;
 
-        public void Initialize(GameSession game, Texture2D[] characterPortraits,
+        public void Initialize(GameSession game, Texture2D[] characterPortraits, ArcadeAudio audio,
             Action<int, int> onBegin, Action onEnd, Func<bool> replayAvailable)
         {
             session = game;
             portraits = characterPortraits;
+            matchAudio = audio;
             beginMatch = onBegin;
             endMatch = onEnd;
             canReplay = replayAvailable;
@@ -143,7 +145,7 @@ namespace Marubatsu.Presentation
                     lane * 1.3f, stage + 10), index, portraits);
             }
 
-            if (art.Button(Center(startY, Mathf.Min(width - 66, 980), 108),
+            if (Button(Center(startY, Mathf.Min(width - 66, 980), 108),
                 T("ゲームスタート", "GAME START"), 60, Trim.Gold))
                 screen = ScreenState.Fighters;
         }
@@ -160,9 +162,9 @@ namespace Marubatsu.Presentation
             float slotW = (width - 112) / 2;
             var circleSlot = new Rect(46, slotY, slotW, 88);
             var crossSlot = new Rect(width / 2 + 10, slotY, slotW, 88);
-            if (art.Button(circleSlot, PlayerName(true),
+            if (Button(circleSlot, PlayerName(true),
                 Compact ? 34 : 43, Trim.Blue)) pickingCircle = true;
-            if (art.Button(crossSlot, PlayerName(false),
+            if (Button(crossSlot, PlayerName(false),
                 Compact ? 34 : 43, Trim.Orange)) pickingCircle = false;
             Rect activeSlot = pickingCircle ? circleSlot : crossSlot;
             art.Label(new Rect(activeSlot.xMax - 66, slotY, 47, 88), "‹", 34, Color.white, true);
@@ -189,12 +191,13 @@ namespace Marubatsu.Presentation
                 bool chosen = GUI.Button(card, GUIContent.none, GUIStyle.none);
                 GUI.enabled = previous;
                 if (!chosen) continue;
+                matchAudio.PlaySelect();
                 if (pickingCircle) circleChoice = index;
                 else crossChoice = index;
             }
 
             float confirmY = Mathf.Max(height * .78f, cardY + cardH + 12);
-            if (art.Button(Center(confirmY, Mathf.Min(width - 58, 1050), 105),
+            if (Button(Center(confirmY, Mathf.Min(width - 58, 1050), 105),
                 T("このキャラで対戦を始める", "CONFIRM FIGHTERS"), Compact ? 44 : 58, Trim.Gold))
             {
                 round = 1;
@@ -228,6 +231,7 @@ namespace Marubatsu.Presentation
             if (art.Button(Center(height - 152, Mathf.Min(width - 65, 700), 107),
                 "READY?", 66, Trim.Gold, ready))
             {
+                matchAudio.PlayVersus();
                 introStart = Time.unscaledTime;
                 screen = ScreenState.Versus;
             }
@@ -413,14 +417,14 @@ namespace Marubatsu.Presentation
             }
 
             float w = Mathf.Min(500, (width - 66) / 2);
-            if (art.Button(new Rect(width / 2 - w - 5, height - 92, w, 81),
+            if (Button(new Rect(width / 2 - w - 5, height - 92, w, 81),
                 T("同じキャラで再戦", "REMATCH"), 34, Trim.Gold))
             {
                 endMatch();
                 round++;
                 screen = ScreenState.Scan;
             }
-            if (art.Button(new Rect(width / 2 + 5, height - 92, w, 81),
+            if (Button(new Rect(width / 2 + 5, height - 92, w, 81),
                 T("キャラ選択", "CHARACTERS"), 33, Trim.Blue))
             {
                 endMatch();
@@ -438,8 +442,15 @@ namespace Marubatsu.Presentation
 
         void Back(Rect rect, ScreenState destination)
         {
-            if (art.Button(rect, T("‹  もどる", "‹  BACK"), 28, Trim.Steel))
+            if (Button(rect, T("‹  もどる", "‹  BACK"), 28, Trim.Steel))
                 screen = destination;
+        }
+
+        bool Button(Rect rect, string label, int size, Trim trim)
+        {
+            if (!art.Button(rect, label, size, trim)) return false;
+            matchAudio.PlaySelect();
+            return true;
         }
 
         static Trim Side(bool circle) => circle ? Trim.Blue : Trim.Orange;

@@ -30,9 +30,12 @@ namespace Marubatsu
 
             game = GetComponent<TicTacToeGameManager>();
             if (game == null) game = gameObject.AddComponent<TicTacToeGameManager>();
+            if (!TryGetComponent<AudioListener>(out _)) gameObject.AddComponent<AudioListener>();
+            var matchAudio = gameObject.AddComponent<ArcadeAudio>();
+            matchAudio.Initialize(game.Session);
             hud = gameObject.AddComponent<MatchHud>();
             roster = characters.Prefabs;
-            hud.Initialize(game.Session, characters.Portraits, BeginMatch, EndMatch,
+            hud.Initialize(game.Session, characters.Portraits, matchAudio, BeginMatch, EndMatch,
                 () => matchView != null && matchView.CanReplay);
             VuforiaApplication.Instance.OnVuforiaStarted += OnStarted;
             if (VuforiaApplication.Instance.IsRunning) OnStarted();
