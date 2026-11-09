@@ -7,6 +7,8 @@ namespace Marubatsu.Presentation
         const float TurnPreviewScale = 0.012f;
         const float TurnPreviewLift = 0.003f;
         const float TurnPreviewDegreesPerSecond = 60f;
+        static readonly Color CircleColor = new Color32(125, 211, 252, 255);
+        static readonly Color CrossColor = new Color32(253, 141, 99, 255);
 
         GameSession session;
         BoardTracker tracker;
@@ -116,7 +118,7 @@ namespace Marubatsu.Presentation
                 MarkType mark = snapshot.Cells[index];
                 GameObject prefab = mark == MarkType.Circle ? circlePrefab :
                     mark == MarkType.Cross ? crossPrefab : null;
-                pieces.SetCell(index, prefab);
+                pieces.SetCell(index, prefab, mark == MarkType.Circle ? CircleColor : CrossColor, lineMaterial);
             }
 
             winningLine.enabled = snapshot.WinningCells.Length == 3;
@@ -125,8 +127,7 @@ namespace Marubatsu.Presentation
                 Vector3 lift = Vector3.up * (Mathf.Min(boardSize.x, boardSize.y) * 0.025f);
                 winningLine.SetPosition(0, BoardGeometry.CellCenter(snapshot.WinningCells[0], boardSize) + lift);
                 winningLine.SetPosition(1, BoardGeometry.CellCenter(snapshot.WinningCells[2], boardSize) + lift);
-                victoryColor = snapshot.Outcome == OutcomeType.CircleWon
-                    ? new Color32(125, 211, 252, 255) : new Color32(253, 141, 99, 255);
+                victoryColor = snapshot.Outcome == OutcomeType.CircleWon ? CircleColor : CrossColor;
                 criticalTime = animate ? 0.65f : 0f;
                 UpdateVictoryLine(animate ? 1f : 0f);
                 if (animate)
