@@ -4,6 +4,8 @@ namespace Marubatsu.Presentation
 {
     public sealed class VictorySequenceController : MonoBehaviour
     {
+        const float WinnerScaleMultiplier = 2f;
+
         [System.Serializable]
         public sealed class Settings
         {
@@ -163,7 +165,7 @@ namespace Marubatsu.Presentation
                     celebrated = true;
                 }
                 float rise = EaseOut(Mathf.Clamp01(reveal * 6));
-                label.Show("WINNER!", centers[1] + Vector3.up * (unit * (settings.liftInCells + 2.22f)), tint,
+                label.Show("WINNER!", centers[1] + Vector3.up * (unit * (settings.liftInCells + 3.37f)), tint,
                     rise, Mathf.Lerp(.66f, 1f, rise));
             }
             else
@@ -189,7 +191,9 @@ namespace Marubatsu.Presentation
             float high = unit * (settings.liftInCells + accentHeight);
             float settle = Mathf.SmoothStep(0, 1, Mathf.Clamp01(charge * 2));
             Vector3 position = Vector3.Lerp(actor.Start, Vector3.up * (unit * .03f), settle);
-            position.y += high * EaseOut(launch) + unit * (hover + .15f * Mathf.Sin(spin * Mathf.PI));
+            float rise = EaseOut(launch);
+            position.y += high * rise + unit * (hover + .15f * Mathf.Sin(spin * Mathf.PI));
+            position += (centers[index] - centers[1]) * (.65f * rise);
 
             Vector3 localAxis = fighter == VictoryFighter.Mitanuki ? actor.StageFacing * Vector3.right :
                 fighter == VictoryFighter.Yagapon ? new Vector3(.16f, 1, .25f) : Vector3.up;
@@ -197,10 +201,11 @@ namespace Marubatsu.Presentation
             Quaternion stunt = Quaternion.AngleAxis(turn * spinEase, localAxis);
             Quaternion facing = Quaternion.Slerp(actor.StartRotation, actor.Facing, settle);
             // Rotate around the body rather than the feet during an aerial stunt.
-            Vector3 bodyCenter = Vector3.up * (unit * .33f);
+            Vector3 bodyCenter = Vector3.up * (unit * .33f * WinnerScaleMultiplier);
             actor.Pivot.localPosition = position + bodyCenter - stunt * bodyCenter;
             actor.Pivot.localRotation = stunt * facing;
-            actor.Pivot.localScale = Vector3.Lerp(actor.StartScale, Vector3.one * (index == 1 ? .91f : .81f), settle);
+            float targetScale = (index == 1 ? .91f : .81f) * WinnerScaleMultiplier;
+            actor.Pivot.localScale = Vector3.Lerp(actor.StartScale, Vector3.one * targetScale, settle);
 
             if (!actor.Sparked && charge >= .18f + .27f * index)
             {
