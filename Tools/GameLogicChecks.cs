@@ -93,13 +93,16 @@ public static class GameLogicChecks
             "one stable mark is accepted once");
 
         cells[4] = CellMark.Empty;
+        Require(input.Observe(cells) == PaperMoveStatus.Ready, "a missing accepted mark is ignored");
+        cells[4] = CellMark.Cross;
+        Require(input.Observe(cells) == PaperMoveStatus.Ready, "a misread accepted mark is ignored");
+
+        cells[4] = CellMark.Unknown;
         cells[0] = CellMark.Cross;
-        input.Observe(cells);
-        Require(game.GetSnapshot().Revision == 1, "changed paper cannot overwrite committed board");
-        cells[4] = CellMark.Circle;
-        input.Observe(cells);
-        Require(game.GetSnapshot().Revision == 2 && game.GetSnapshot().Cells[0] == MarkType.Cross,
-            "opponent's move is accepted once paper matches");
+        Require(input.Observe(cells) == PaperMoveStatus.Accepted, "an obscured accepted cell does not block the next move");
+        var afterMove = game.GetSnapshot();
+        Require(afterMove.Revision == 2 && afterMove.Cells[4] == MarkType.Circle && afterMove.Cells[0] == MarkType.Cross,
+            "the new move leaves the previously accepted mark intact");
         game.ResetGame();
         input.Observe(cells);
         Require(game.GetSnapshot().Revision == 3 && !game.GetSnapshot().LastMove.HasValue,

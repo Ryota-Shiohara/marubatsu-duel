@@ -7,7 +7,6 @@ namespace Marubatsu
     {
         WaitingForEmptyPaper,
         WaitingForStableCells,
-        BoardMismatch,
         MultipleMarks,
         WrongTurn,
         Ready,
@@ -51,16 +50,12 @@ namespace Marubatsu
             MoveCandidate? candidate = null;
             for (int index = 0; index < stableCells.Count; index++)
             {
+                if (snapshot.Cells[index] != MarkType.Empty) continue;
+
                 CellMark observed = stableCells[index];
                 if (observed == CellMark.Unknown) return PaperMoveStatus.WaitingForStableCells;
                 MarkType mark = observed == CellMark.Circle ? MarkType.Circle :
                     observed == CellMark.Cross ? MarkType.Cross : MarkType.Empty;
-                MarkType accepted = snapshot.Cells[index];
-                if (accepted != MarkType.Empty)
-                {
-                    if (mark != accepted) return PaperMoveStatus.BoardMismatch;
-                    continue;
-                }
 
                 if (mark == MarkType.Empty) continue;
                 if (candidate.HasValue) return PaperMoveStatus.MultipleMarks;

@@ -470,8 +470,6 @@ namespace Marubatsu.Presentation
                     return circleTurn
                         ? T("新しく書いた×を消し、○を書いてください。", "Erase the new X and write O.")
                         : T("新しく書いた○を消し、×を書いてください。", "Erase the new O and write X.");
-                case PaperMoveStatus.BoardMismatch:
-                    return T("紙の記号を確認し、受理済みの配置に戻してください。", "Restore the marks that were already accepted.");
                 case PaperMoveStatus.WaitingForEmptyPaper:
                     return T("何も書いていない盤面を映してください。", "Show a blank board to begin.");
                 case PaperMoveStatus.WaitingForStableCells:
