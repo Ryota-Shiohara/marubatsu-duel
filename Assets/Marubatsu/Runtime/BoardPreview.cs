@@ -18,7 +18,7 @@ namespace Marubatsu
             content = new GameObject("CalibrationObjects_NotGameState");
             content.transform.SetParent(transform, false);
             material = new Material(Shader.Find("Standard")) { color = new Color(0.1f, 0.7f, 1f) };
-            float side = size.x * BoardGeometry.PlayAreaFraction / 3f * 0.35f;
+            float side = BoardGeometry.CellSize(size) * 0.35f;
             for (int i = 0; i < 9; i++)
             {
                 var piece = GameObject.CreatePrimitive(PrimitiveType.Cube);

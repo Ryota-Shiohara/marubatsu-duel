@@ -94,15 +94,14 @@ namespace Marubatsu
             }
             selectedValid = false;
             var size = target.GetSize();
-            float halfX = size.x * BoardGeometry.PlayAreaFraction / 3f * (0.5f - CellInset);
-            float halfZ = size.y * BoardGeometry.PlayAreaFraction / 3f * (0.5f - CellInset);
+            float halfCell = BoardGeometry.CellSize(size) * (0.5f - CellInset);
             var cellToWorld = transform.localToWorldMatrix;
 
             for (int index = 0; index < BoardCellRecognition.Count; index++)
             {
                 bool selected = index == sampledCell;
                 var center = BoardGeometry.CellCenter(index, size);
-                string failure = ProjectCell(frame, cellToWorld, center, halfX, halfZ, selected);
+                string failure = ProjectCell(frame, cellToWorld, center, halfCell, selected);
                 if (failure != null)
                 {
                     recognition.InvalidateCell(index);
@@ -142,12 +141,12 @@ namespace Marubatsu
         }
 
         string ProjectCell(GrayCameraFrame frame, Matrix4x4 cellToWorld, Vector3 center,
-            float halfX, float halfZ, bool selected)
+            float halfCell, bool selected)
         {
             for (int corner = 0; corner < 4; corner++)
             {
-                float x = corner == 0 || corner == 3 ? -halfX : halfX;
-                float z = corner < 2 ? halfZ : -halfZ;
+                float x = corner == 0 || corner == 3 ? -halfCell : halfCell;
+                float z = corner < 2 ? halfCell : -halfCell;
                 Vector3 world = cellToWorld.MultiplyPoint3x4(center + new Vector3(x, 0, z));
                 var point = frame.WorldToCamera.MultiplyPoint3x4(world);
                 if (point.z <= arCamera.nearClipPlane) return "Cell behind camera";

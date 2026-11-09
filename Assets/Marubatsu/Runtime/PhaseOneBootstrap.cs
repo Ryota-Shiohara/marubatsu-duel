@@ -48,7 +48,7 @@ namespace Marubatsu
                     game.Session, tracker, target.GetSize(), CirclePrefab, CrossPrefab);
             else
                 Debug.LogWarning("[Marubatsu] Assign both character prefabs on PhaseOneBootstrap.", this);
-            Debug.Log("[Phase1] Instant target ready. Print the board at 180 mm width. " +
+            Debug.Log("[Phase1] Instant target ready. Print the board at 270 x 180 mm. " +
                 "This target has not been rated in Target Manager.", this);
         }
 

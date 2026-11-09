@@ -5,7 +5,7 @@ namespace Marubatsu.Presentation
     /// <summary>Attach to a transform aligned with the center and axes of the board.</summary>
     public sealed class BoardPieceView : MonoBehaviour
     {
-        [SerializeField] Vector2 boardSize = Vector2.one * BoardGeometry.TargetWidthMeters;
+        [SerializeField] Vector2 boardSize = new Vector2(BoardGeometry.TargetWidthMeters, BoardGeometry.TargetHeightMeters);
         [SerializeField, Min(0.0001f)] float modelScale = 0.012f;
         [SerializeField, Min(0f)] float liftHeight = 0.006f;
         [SerializeField, Min(0f)] float liftDuration = 0.35f;

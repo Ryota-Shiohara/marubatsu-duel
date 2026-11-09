@@ -23,7 +23,7 @@
 - Unity 6000.3.24f1、Vuforia 11.4.4、Built-in。
 - Vuforia Configurationに各自のライセンスを設定。既存プロジェクトからキーをコピーする処理は行っていない。
 - Webcam Play Modeとカメラデバイスを選択。他アプリのカメラ利用を閉じる。
-- A4 SVGを100%で印刷し、ターゲット180 mmと検尺100 mmを確認。光沢を避け、平らな台紙に固定する。
+- A4横のSVGを100%で印刷し、ターゲット270 × 180 mmと検尺100 mmを確認。光沢を避け、平らな台紙に固定する。
 - 印刷物のTOP側とシーンのrow=0側が一致することを確認。
 
 ## 最初の実機確認
@@ -37,7 +37,7 @@
 
 ## Target Managerへの登録
 
-開発者アカウントでDevice Databaseを作り、`Assets/Marubatsu/Art/BoardTarget.png` をImage Targetとして登録。実寸幅は **0.18 m** を基準とし、Unityで `GetSize()` が0.18 × 0.18になることを確認する。教材の例の100をそのまま入力しない。
+開発者アカウントでDevice Databaseを作り、`Assets/Marubatsu/Art/BoardTarget.png` をImage Targetとして登録。実寸幅は **0.27 m** を基準とし、Unityで `GetSize()` が0.27 × 0.18になることを確認する。教材の例の100をそのまま入力しない。
 
 星評価と黄色い特徴点の分布を確認し、可能なら4～5星を目標とする。データベースのUnity用パッケージをインポートし、VuforiaのImage TargetをFrom Databaseで作成、`BoardTracker` と `BoardPreview` を付ける。標準の `DefaultObserverEventHandler` がある場合は削除し、このハンドラーによる表示管理へ一本化する。
 
