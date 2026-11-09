@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using Vuforia;
+using Marubatsu.Presentation;
 
 namespace Marubatsu.Editor
 {
@@ -13,6 +14,7 @@ namespace Marubatsu.Editor
         const string ScenePath = "Assets/Marubatsu/Scenes/Phase1_BoardTracking.unity";
         const string CirclePath = "Assets/Marubatsu/Art/Yagapon/Yagapon_Animated.prefab";
         const string CrossPath = "Assets/Marubatsu/Art/Yaguchi/Yaguchi_Animated.prefab";
+        const string MitanukiPath = "Assets/Marubatsu/Art/Mitanuki/Mitanuki_Animated.prefab";
 
         [MenuItem("Marubatsu/Create Phase 1 Scene")]
         public static void CreateScene()
@@ -32,7 +34,6 @@ namespace Marubatsu.Editor
             cameraObject.AddComponent<CameraFrameProbe>();
             var bootstrap = cameraObject.AddComponent<PhaseOneBootstrap>();
             bootstrap.BoardTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(TexturePath);
-            AssignCharacterPrefabs(bootstrap);
             var light = new GameObject("Directional Light", typeof(Light));
             light.GetComponent<Light>().type = LightType.Directional;
             light.transform.rotation = Quaternion.Euler(45, -30, 0);
@@ -65,22 +66,25 @@ namespace Marubatsu.Editor
         public static void ConfigureMatchScene()
         {
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
-            var scene = EditorSceneManager.OpenScene(ScenePath);
-            var bootstrap = UnityEngine.Object.FindFirstObjectByType<PhaseOneBootstrap>();
-            if (bootstrap == null) throw new InvalidOperationException("Board bootstrap not found.");
-            AssignCharacterPrefabs(bootstrap);
-            EditorSceneManager.MarkSceneDirty(scene);
-            if (!EditorSceneManager.SaveScene(scene))
-                throw new IOException("Could not save match character references.");
+            var roster = Resources.Load<MatchCharacterRoster>(MatchCharacterRoster.ResourcePath);
+            if (roster == null) throw new InvalidOperationException("Match character roster not found.");
+            roster.Prefabs = new[]
+            {
+                AssetDatabase.LoadAssetAtPath<GameObject>(CirclePath),
+                AssetDatabase.LoadAssetAtPath<GameObject>(MitanukiPath),
+                AssetDatabase.LoadAssetAtPath<GameObject>(CrossPath)
+            };
+            roster.Portraits = new[]
+            {
+                AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Marubatsu/Art/Yagapon/SelectPortrait.png"),
+                AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Marubatsu/Art/Mitanuki/SelectPortrait.png"),
+                AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Marubatsu/Art/Yaguchi/SelectPortrait.png")
+            };
+            if (!roster.IsComplete)
+                throw new InvalidOperationException("Animated character prefabs or portraits are missing.");
+            EditorUtility.SetDirty(roster);
+            AssetDatabase.SaveAssetIfDirty(roster);
             PhaseOneValidation.Validate();
-        }
-
-        static void AssignCharacterPrefabs(PhaseOneBootstrap bootstrap)
-        {
-            bootstrap.CirclePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CirclePath);
-            bootstrap.CrossPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CrossPath);
-            if (bootstrap.CirclePrefab == null || bootstrap.CrossPrefab == null)
-                throw new InvalidOperationException("Animated character prefabs are missing.");
         }
     }
 }

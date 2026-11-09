@@ -3,6 +3,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using Vuforia;
+using Marubatsu.Presentation;
 
 namespace Marubatsu.Editor
 {
@@ -41,6 +42,8 @@ namespace Marubatsu.Editor
             Require(bootstrap != null && bootstrap.BoardTexture == texture, "Bootstrap texture reference is broken.");
             Require(bootstrap.GetComponent<VuforiaBehaviour>() != null && bootstrap.GetComponent<CameraFrameProbe>() != null,
                 "ARCamera components are missing.");
+            var roster = Resources.Load<MatchCharacterRoster>(MatchCharacterRoster.ResourcePath);
+            Require(roster != null && roster.IsComplete, "Character select roster references are broken.");
             Debug.Log("[Phase1Validation] PASS: physical cell positions, bounds, texture import, scene references. Camera tracking not tested.");
         }
 

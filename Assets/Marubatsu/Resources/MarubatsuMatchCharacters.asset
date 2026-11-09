@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7dd81d9693ee4df68103dedc148a2e08, type: 3}
+  m_Name: MarubatsuMatchCharacters
+  m_EditorClassIdentifier:
+  Prefabs:
+  - {fileID: 4335016371124572410, guid: 84b26a9fac740b0469b818330b610a05, type: 3}
+  - {fileID: 849961393519203573, guid: 5d7078c0a66fd2041a20dd713d2d2f46, type: 3}
+  - {fileID: 1525522319405864302, guid: cffc77a34e1b04b44b07dae9a209de44, type: 3}
+  Portraits:
+  - {fileID: 2800000, guid: 37ea6943be954818a9c902bad50c865f, type: 3}
+  - {fileID: 2800000, guid: 57854854e51c4e3ba12307194404f427, type: 3}
+  - {fileID: 2800000, guid: 54a750ca4f6d4e86a7dcf47b77617792, type: 3}

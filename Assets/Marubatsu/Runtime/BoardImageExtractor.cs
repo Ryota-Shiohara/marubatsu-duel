@@ -42,8 +42,8 @@ namespace Marubatsu
         {
             if (session != null) session.OnSnapshotChanged -= OnGameChanged;
             session = game;
-            paperInput = new PaperMoveInput(game);
-            session.OnSnapshotChanged += OnGameChanged;
+            paperInput = session != null ? new PaperMoveInput(session) : null;
+            if (session != null) session.OnSnapshotChanged += OnGameChanged;
             Invalidate("Waiting for game board");
         }
 

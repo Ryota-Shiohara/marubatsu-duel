@@ -17,8 +17,12 @@ namespace Marubatsu.Presentation
         Transform crossPreview;
         Transform activePreview;
         LineRenderer winningLine;
+        ParticleSystem criticalBurst;
         Material lineMaterial;
         Vector2 boardSize;
+        float lineWidth;
+        float criticalTime;
+        Color victoryColor;
         int displayedRevision = -1;
 
         public void Initialize(GameSession game, BoardTracker boardTracker, Vector2 size,
@@ -45,13 +49,15 @@ namespace Marubatsu.Presentation
             winningLine.enabled = false;
             winningLine.useWorldSpace = false;
             winningLine.positionCount = 2;
-            winningLine.widthMultiplier = Mathf.Min(size.x, size.y) * 0.018f;
+            lineWidth = Mathf.Min(size.x, size.y) * 0.018f;
+            winningLine.widthMultiplier = lineWidth;
             winningLine.numCapVertices = 4;
             var shader = Shader.Find("Sprites/Default");
             if (shader != null)
             {
-                lineMaterial = new Material(shader) { color = Color.cyan };
+                lineMaterial = new Material(shader);
                 winningLine.sharedMaterial = lineMaterial;
+                criticalBurst = CreateCriticalBurst(content.transform);
             }
 
             tracker.TrackingChanged += SetVisible;
@@ -81,6 +87,10 @@ namespace Marubatsu.Presentation
         {
             if (activePreview != null && activePreview.gameObject.activeInHierarchy)
                 activePreview.Rotate(Vector3.up, TurnPreviewDegreesPerSecond * Time.deltaTime, Space.Self);
+
+            if (criticalTime <= 0f || !winningLine.enabled) return;
+            criticalTime = Mathf.Max(0f, criticalTime - Time.deltaTime);
+            UpdateVictoryLine(criticalTime / 0.65f);
         }
 
         void Apply(BoardSnapshot snapshot, bool animate)
@@ -115,12 +125,69 @@ namespace Marubatsu.Presentation
                 Vector3 lift = Vector3.up * (Mathf.Min(boardSize.x, boardSize.y) * 0.025f);
                 winningLine.SetPosition(0, BoardGeometry.CellCenter(snapshot.WinningCells[0], boardSize) + lift);
                 winningLine.SetPosition(1, BoardGeometry.CellCenter(snapshot.WinningCells[2], boardSize) + lift);
+                victoryColor = snapshot.Outcome == OutcomeType.CircleWon
+                    ? new Color32(125, 211, 252, 255) : new Color32(253, 141, 99, 255);
+                criticalTime = animate ? 0.65f : 0f;
+                UpdateVictoryLine(animate ? 1f : 0f);
                 if (animate)
+                {
                     foreach (int cell in snapshot.WinningCells)
                         pieces.PlayAnimation(cell, "Victory");
+                    PlayCriticalBurst(snapshot.WinningCells, lift);
+                }
             }
             else if (animate && snapshot.LastMove.HasValue && snapshot.LastMove.Value.CellIndex == 4)
                 pieces.PlayAnimation(4, "Wave");
+        }
+
+        ParticleSystem CreateCriticalBurst(Transform parent)
+        {
+            var burstObject = new GameObject("Critical victory burst");
+            burstObject.transform.SetParent(parent, false);
+            var burst = burstObject.AddComponent<ParticleSystem>();
+            burst.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = burst.main;
+            main.playOnAwake = false;
+            main.loop = false;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.28f, 0.6f);
+            main.startSize = new ParticleSystem.MinMaxCurve(lineWidth * 0.6f, lineWidth * 1.4f);
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            main.maxParticles = 48;
+            var emission = burst.emission;
+            emission.enabled = false;
+            var shape = burst.shape;
+            shape.enabled = false;
+            burst.GetComponent<ParticleSystemRenderer>().sharedMaterial = lineMaterial;
+            return burst;
+        }
+
+        void PlayCriticalBurst(int[] winningCells, Vector3 lift)
+        {
+            if (criticalBurst == null) return;
+            criticalBurst.Play();
+            float speed = BoardGeometry.CellSize(boardSize) * 1.8f;
+            foreach (int cell in winningCells)
+            {
+                Vector3 center = BoardGeometry.CellCenter(cell, boardSize) + lift;
+                for (int ray = 0; ray < 14; ray++)
+                {
+                    float angle = ray * (2f * Mathf.PI / 14f);
+                    var particle = new ParticleSystem.EmitParams
+                    {
+                        position = center,
+                        velocity = new Vector3(Mathf.Cos(angle), 0.24f, Mathf.Sin(angle)) * speed,
+                        startColor = ray % 3 == 0 ? victoryColor : new Color32(255, 220, 128, 255)
+                    };
+                    criticalBurst.Emit(particle, 1);
+                }
+            }
+        }
+
+        void UpdateVictoryLine(float flash)
+        {
+            Color color = Color.Lerp(victoryColor, new Color32(255, 238, 174, 255), flash);
+            winningLine.startColor = winningLine.endColor = color;
+            winningLine.widthMultiplier = lineWidth * (1f + flash * 2f);
         }
 
         void SetVisible(bool visible)
