@@ -28,6 +28,7 @@ namespace Marubatsu.Presentation
         int circleChoice, crossChoice = 2;
         int round = 1, circleMarks, crossMarks;
         bool pickingCircle = true;
+        bool confirmingInterrupt;
         float width, height, scale, introStart;
         Vector2 origin;
 
@@ -83,6 +84,13 @@ namespace Marubatsu.Presentation
         void OnGUI()
         {
             if (session == null) return;
+            Event input = Event.current;
+            if (screen == ScreenState.Battle && input.type == EventType.KeyDown && input.keyCode == KeyCode.Escape &&
+                (confirmingInterrupt || snapshot.Outcome == OutcomeType.Playing))
+            {
+                confirmingInterrupt = !confirmingInterrupt;
+                input.Use();
+            }
             bool cameraScreen = screen == ScreenState.Scan || screen == ScreenState.Battle;
             if (cameraScreen && extractor != null && extractor.DiagnosticsVisible) return;
 
@@ -354,11 +362,20 @@ namespace Marubatsu.Presentation
             DrawBattlePlayer(new Rect(16, playerY, playerW, 115), true, playing && circle);
             DrawBattlePlayer(new Rect(width - playerW - 16, playerY, playerW, 115), false, playing && !circle);
 
+            if (confirmingInterrupt)
+            {
+                DrawInterruptConfirmation();
+                return;
+            }
+
             if (!playing)
             {
                 DrawResult();
                 return;
             }
+
+            if (Button(Center(narrow ? 270 : 152, 252, 62), T("試合中断", "END MATCH"), 28, Trim.Steel))
+                confirmingInterrupt = true;
 
             string title = usable ? T($"{PlayerName(circle)}の番", $"{PlayerName(circle)}'s turn")
                 : T("盤面を映してください", "SHOW THE BOARD");
@@ -370,6 +387,22 @@ namespace Marubatsu.Presentation
             Banner(Center(height - 113, width - 44, 103), detail, narrow ? 29 : 37, display: false);
             Banner(Center(height - 178, Mathf.Min(width - 70, 720), 79), title, narrow ? 35 : 43,
                 usable ? Side(circle) : Trim.Steel);
+        }
+
+        void DrawInterruptConfirmation()
+        {
+            Banner(Center(height - 188, 580, 83), T("試合を中断しますか？", "END THIS MATCH?"), 36, Trim.Orange);
+            if (Button(new Rect(width / 2 - 290, height - 94, 282, 78),
+                T("続ける", "KEEP PLAYING"), 30, Trim.Steel))
+                confirmingInterrupt = false;
+            if (Button(new Rect(width / 2 + 8, height - 94, 282, 78),
+                T("中断する", "END MATCH"), 30, Trim.Orange))
+            {
+                confirmingInterrupt = false;
+                endMatch();
+                screen = ScreenState.Fighters;
+                pickingCircle = true;
+            }
         }
 
         void DrawBattlePlayer(Rect rect, bool circle, bool active)

@@ -122,7 +122,7 @@ namespace Marubatsu.Presentation
                 StartScale = pivot.localScale,
                 StartRotation = pivot.localRotation,
                 StageFacing = facing,
-                Facing = facing * Quaternion.Euler(0, character == VictoryFighter.Yagapon ? -90 : 0, 0)
+                Facing = facing * MatchCharacterRoster.FrontFacingOffset(character)
             };
         }
 

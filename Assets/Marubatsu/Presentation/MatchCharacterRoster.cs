@@ -18,6 +18,9 @@ namespace Marubatsu.Presentation
         internal static string CharacterName(int index, bool japanese) =>
             japanese ? JapaneseNames[index] : EnglishNames[index];
 
+        internal static Quaternion FrontFacingOffset(VictoryFighter fighter) =>
+            fighter == VictoryFighter.Yagapon ? Quaternion.Euler(0f, -90f, 0f) : Quaternion.identity;
+
         internal static Font CreateJapaneseFont(int size)
         {
             string[] installed = Font.GetOSInstalledFontNames();

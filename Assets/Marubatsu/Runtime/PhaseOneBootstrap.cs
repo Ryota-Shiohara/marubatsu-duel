@@ -82,7 +82,7 @@ namespace Marubatsu
             matchObject.transform.SetParent(target.transform, false);
             matchView = matchObject.AddComponent<BoardMatchView>();
             matchView.Initialize(game.Session, tracker, target.GetSize(),
-                selectedCircle, selectedCross, circleFighter, crossFighter, victorySettings);
+                selectedCircle, selectedCross, circleFighter, crossFighter, victorySettings, GetComponent<Camera>());
             extractor.AttachGame(game.Session);
         }
 

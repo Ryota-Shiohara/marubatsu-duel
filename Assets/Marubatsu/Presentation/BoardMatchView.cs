@@ -25,7 +25,7 @@ namespace Marubatsu.Presentation
 
         public void Initialize(GameSession game, BoardTracker boardTracker, Vector2 size,
             GameObject circle, GameObject cross, VictoryFighter circleCharacter, VictoryFighter crossCharacter,
-            VictorySequenceController.Settings victorySettings = null)
+            VictorySequenceController.Settings victorySettings = null, Camera viewCamera = null)
         {
             session = game;
             tracker = boardTracker;
@@ -38,6 +38,7 @@ namespace Marubatsu.Presentation
             content.transform.SetParent(transform, false);
             pieces = content.AddComponent<BoardPieceView>();
             pieces.SetBoardSize(size);
+            pieces.SetViewCamera(viewCamera != null ? viewCamera : Camera.main);
             circlePreview = CreateTurnPreview(circle, content.transform, "Circle turn preview",
                 BoardGeometry.TurnStandCenter(onLeft: true, targetSize: size));
             crossPreview = CreateTurnPreview(cross, content.transform, "Cross turn preview",
@@ -102,14 +103,12 @@ namespace Marubatsu.Presentation
                 MarkType mark = snapshot.Cells[index];
                 GameObject prefab = mark == MarkType.Circle ? circlePrefab :
                     mark == MarkType.Cross ? crossPrefab : null;
-                pieces.SetCell(index, prefab, mark == MarkType.Circle ? CircleColor : CrossColor, ringMaterial);
+                pieces.SetCell(index, prefab, mark == MarkType.Circle ? CircleColor : CrossColor, ringMaterial,
+                    mark == MarkType.Circle ? circleFighter : crossFighter);
             }
 
             if (snapshot.Outcome != OutcomeType.Playing)
                 victory.Begin(snapshot, circleFighter, crossFighter);
-            else if ((tracker == null || tracker.IsTracked) && snapshot.LastMove.HasValue &&
-                snapshot.LastMove.Value.CellIndex == 4)
-                pieces.PlayAnimation(4, "Wave");
         }
 
         public void SetVisible(bool visible)
